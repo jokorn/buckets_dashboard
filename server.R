@@ -93,14 +93,14 @@ shinyServer(function(input, output) {
     )
     
     # Create the Income pie chart
-    output$income_piechart <- renderPlotly({
+    output$income_sunburstchart <- renderPlotly({
       # Again we need two dates to create the date filter
       validate(
         need(length(input$date_range) == 2, "Select both start and end month for the reports.")
       )
       
       # Render as pie chart
-      plot_ly(data = monthly %>% 
+      plot_ly(data = {first <- monthly %>% 
                 filter(month >= input$date_range[[1]],
                        month <= input$date_range[[2]]) %>% 
                 filter(bucket_group == "Income") %>% 
@@ -108,20 +108,32 @@ shinyServer(function(input, output) {
                 group_by(category) %>% 
                 summarize(amount = sum(amount)) %>% 
                 mutate(parent = "Income") %>% 
-                filter(amount != 0),
-              name = "income_piechart",
-              title = "Income",
+                filter(amount != 0) %>% 
+                mutate(prop = amount / sum(amount)) %>%
+                mutate(parent = if_else(prop < income_other_threshold, "Other", "Income"))
+                  
+                second <- first %>% 
+                  group_by(parent) %>% 
+                  summarize(amount = sum(amount)) %>%
+                  filter(parent == "Other") %>%
+                  mutate(category = "Other", parent = "Income")
+                
+                bind_rows(first, second)
+                },
+              name = "income_sunburst",
+              branchvalues = "total",
+              maxdepth = 2,
+              parents = ~parent,
               labels = ~category,
               values = ~amount,
-              textinfo = income_piechart_textinfo,
-              showlegend = TRUE,
-              automargin = TRUE, #Needed together with fixed height to make it fit in the tabset 
-              type = "pie") %>% 
-        config(displayModeBar = FALSE)
+              textinfo = income_sunburst_textinfo,
+              type = "sunburst") %>% 
+        config(displayModeBar = FALSE) %>% 
+        layout(separators = plotly_separators)
     })
       
     # Create the expenses sunburst chart
-    output$expense_piechart <- renderPlotly({
+    output$expense_sunburstchart <- renderPlotly({
       # Again we need to dates to filer on the date range
       validate(
         need(length(input$date_range) == 2, "Select both start and end month for the reports.")
@@ -154,10 +166,12 @@ shinyServer(function(input, output) {
               name = "expense_piechart",
               parents = ~parent,
               labels = ~labels,
+              textinfo = expenses_sunburst_textinfo,
               values = ~amount,
               maxdepth = 2,
               branchvalues = "total",
               type = "sunburst") %>% 
-        config(displayModeBar = FALSE)
+        config(displayModeBar = FALSE) %>% 
+        layout(separators = plotly_separators)
     })
 })

@@ -63,8 +63,17 @@ expenses_ready <- transactions %>%
 everything <- bind_rows(income_ready,
                         expenses_ready) %>% 
   mutate(posted = ymd(str_sub(posted, 1, 10))) %>% 
+  # Apply manual overrides
+  left_join(manual_categorization,
+            by = c("bucket_group", "category")) %>% 
+  mutate(category = coalesce(category_new, category),
+         bucket_group = coalesce(bucket_group_new, bucket_group),
+         group_id = coalesce(group_id_new, group_id),
+         ranking = coalesce(ranking_new, ranking)) %>% 
+  # Ensure sorting
   arrange(group_id, ranking) %>% 
   mutate(category = factor(category) %>% fct_inorder)
+  
 
 # Create monthly summary
 monthly <- everything %>% 

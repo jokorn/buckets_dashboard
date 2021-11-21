@@ -67,11 +67,12 @@ shinyUI(fluidPage(
                      p(strong("Filter the transactions by selecting cells in the Income/Expense Report"),
                        style = "margin: 5px"),
                      DT::dataTableOutput("transactions_table")),
-            tabPanel("Pie Chart - Income",
-                     plotlyOutput("income_piechart", height = height_income_piechart)),
+            tabPanel("Sunburst Chart - Income",
+                     p(strong("Hover to see amounts and click \"Other\" to see the buckets within that group")),
+                     plotlyOutput("income_sunburstchart", height = height_income_piechart)),
             tabPanel("Sunburst Chart - Expenses",
                      p(strong("Hover to see amounts and click a bucket group to see the buckets within that group")),
-                     plotlyOutput("expense_piechart", height = height_expenses_sunburst))
+                     plotlyOutput("expense_sunburstchart", height = height_expenses_sunburst))
                      
             )
         )
