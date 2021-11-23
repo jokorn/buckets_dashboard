@@ -1,6 +1,11 @@
 # Define UI
 shinyUI(fluidPage(
-
+    # Adjust zoom to fit 1 year without horizontal scrolling
+    tags$style(
+        zoom_css
+    ),
+    
+    
     # Application title
     titlePanel("Buckets Dashboard"),
 
@@ -53,7 +58,7 @@ shinyUI(fluidPage(
                      label = "Toggle: Buckets / Bucket Groups",
                      style="margin-bottom: 5px;"),
         actionButton(inputId = "toggle_zero_totals", 
-                     label = "Toggle: Buckets Without Transactions",
+                     label = "Toggle: Buckets With Zero Total",
                      style="margin-bottom: 5px;"),
         actionButton(inputId = "clear_selection", 
                      label = "Clear Selection",
@@ -61,18 +66,23 @@ shinyUI(fluidPage(
         ),
         
         # Use tabsets for the main panel to easily switch between reports
-        mainPanel(tabsetPanel(
+        mainPanel(width = 10, tabsetPanel(
             tabPanel("Income/Expense Report", DT::dataTableOutput("expenses_pr_month")),
             tabPanel("Transactions", 
                      p(strong("Filter the transactions by selecting cells in the Income/Expense Report"),
                        style = "margin: 5px"),
                      DT::dataTableOutput("transactions_table")),
             tabPanel("Sunburst Chart - Income",
-                     p(strong("Hover to see amounts and click \"Other\" to see the buckets within that group")),
+                     p(strong("Click \"Other\" to see the buckets within that group and see \"config.R\" to change the threshold for \"Other\"")),
                      plotlyOutput("income_sunburstchart", height = height_income_piechart)),
             tabPanel("Sunburst Chart - Expenses",
-                     p(strong("Hover to see amounts and click a bucket group to see the buckets within that group")),
-                     plotlyOutput("expense_sunburstchart", height = height_expenses_sunburst))
+                     p(strong("Click a bucket group to see the buckets within that group")),
+                     plotlyOutput("expense_sunburstchart", height = height_expenses_sunburst)),
+            tabPanel("Net Wealth",
+                     p(strong("Hover to see amounts")),
+                     div(style = zoom_netwealth,
+                         plotlyOutput("net_wealth")))
+                     
                      
             )
         )

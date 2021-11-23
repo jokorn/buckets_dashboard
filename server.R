@@ -92,6 +92,19 @@ shinyServer(function(input, output) {
     }
     )
     
+    # Create the Net Wealth chart
+    output$net_wealth <- renderPlotly({
+      # Again we need two dates to create the date filter
+      validate(
+        need(length(input$date_range) == 2, "Select both start and end month for the reports.")
+      )
+      
+      plot_net_wealth(assets_liabilities,
+                      input$date_range,
+                      "")
+      
+    })
+    
     # Create the Income pie chart
     output$income_sunburstchart <- renderPlotly({
       # Again we need two dates to create the date filter
@@ -127,6 +140,7 @@ shinyServer(function(input, output) {
               labels = ~category,
               values = ~amount,
               textinfo = income_sunburst_textinfo,
+              hoverinfo = income_sunburst_hoverinfo,
               type = "sunburst") %>% 
         config(displayModeBar = FALSE) %>% 
         layout(separators = plotly_separators)
@@ -167,6 +181,7 @@ shinyServer(function(input, output) {
               parents = ~parent,
               labels = ~labels,
               textinfo = expenses_sunburst_textinfo,
+              hoverinfo = expenses_sunburst_hoverinfo,
               values = ~amount,
               maxdepth = 2,
               branchvalues = "total",

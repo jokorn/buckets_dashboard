@@ -23,6 +23,8 @@ transactions <- tbl(con, "bucket_transaction")
 buckets <- tbl(con, "bucket")
 bucket_groups <- tbl(con, "bucket_group")
 income <- tbl(con, "account_transaction")
+acc_balance <- tbl(con, "account") %>% collect()
+acc_trans <- tbl(con, "account_transaction") %>% collect()
 
 # Add bucket groups to buckets
 buckets_ready <- buckets %>% 
@@ -85,6 +87,41 @@ monthly <- everything %>%
   complete(nesting(category, bucket_group), month, fill = list(amount = 0)) %>% 
   relocate(bucket_group)
 
+# Create account balances from end balance and transactions
+assets_liabilities <- acc_trans %>%
+  # Report last date in each month for easy matching with buckets reports
+  # NB: There is a bug in Buckets so the last transactions in each month is not included
+  # in the monthly net wealth report https://github.com/buckets/application/issues/542
+  mutate(month = floor_date(str_sub(posted, 1,10) %>%
+                              ymd(),"month")) %>% 
+  # We need at least one transaction per month for accumulate to work correctly
+  tidyr::complete(month, account_id, fill = list(amount = 0)) %>% 
+  # Calculate net flow pr account pr month
+  group_by(account_id, month) %>% 
+  summarise(net_flow = sum(amount/100)) %>% 
+  ungroup() %>% 
+  # Add the end balance and account names
+  left_join(acc_balance %>% select(account_id = id,
+                                   end_balance = balance,
+                                   name),
+            by = "account_id") %>% 
+  # Prepare to accumulate = take end balance and then pr month add net flow (cumulatively)
+  group_by(name, end_balance) %>%
+  group_nest() %>% 
+  # Do the actual accumulation
+  mutate(balance = map2(end_balance, data, ~ .y %>%
+                       arrange(desc(month)) %>%
+                       mutate(net_flow = net_flow*-1) %>%
+                       add_case(month = .$month[1] %m+% months(1), net_flow = .x/100, account_id = .$account_id[1]) %>% 
+                       arrange(desc(month)) %>%
+                       mutate(month = month - days(1)) %>% 
+                       mutate(balance = accumulate(net_flow, sum)))) %>% 
+  unnest(balance) %>% 
+  # Add assets/liabilities. Note that this means that these categories are pr 
+  # month and account meaning that one account can be both an asset and a liability if
+  # if the balance is positive in some months and negative in others
+  mutate(account_category = if_else(balance < 0, "Liabilities", "Assets"))
+
 # Create date variable for use in UI/server 
 dates_available <- range(monthly$month) 
 
@@ -141,20 +178,25 @@ expense_income_table <- function(data_source,
     datatable_prepare <- datatable(data_source_ready,
                                  options = list(dom = "t", 
                                                 paging = FALSE,
+                                                scrollY = height_expense_report,
+                                                scrollX = TRUE,
+                                                scrollCollapse = TRUE,
                                                 columnDefs = list(list(visible=FALSE, targets=c(0))),
                                                 fixedHeader = TRUE),
                                  rownames = FALSE,
-                                 extensions = c('FixedHeader'),
                                  selection = list(target = "cell"))
   } else {
     datatable_prepare <- datatable(data_source_ready,
                                  options = list(dom = "t", 
                                                 paging = FALSE,
+                                                scrollY = height_expense_report,
+                                                scrollX = TRUE,
+                                                scrollCollapse = TRUE,
                                                 rowGroup = list(dataSrc = 0),
                                                 columnDefs = list(list(visible=FALSE, targets=c(0))),
                                                 fixedHeader = TRUE),
                                  rownames = FALSE,
-                                 extensions = c('FixedHeader', 'RowGroup'),
+                                 extensions = 'RowGroup',
                                  selection = list(target = "cell"))
   }
   
@@ -223,7 +265,8 @@ transactions_table <- function(data_source,
   datatable(data_source_ready,
             options = list(dom = "fti", 
                            paging = FALSE,
-                           scrollY = height_transactions_report)) %>% 
+                           scrollY = height_transactions_report,
+                           scrollCollapse = TRUE)) %>% 
     formatStyle("Amount",
                 color = DT::styleInterval(cuts = c(-0.001, 0.001),
                                           values = c("red", "gray", "green"))) %>%
@@ -234,3 +277,58 @@ transactions_table <- function(data_source,
                    dec.mark = user_dec.mark,
                    before = currency_before)
 }
+
+plot_net_wealth <- function(assets_liabilities,
+                            input_date_range,
+                            input_accounts = "") {
+  
+  plot_assets_liabilities <- assets_liabilities %>% 
+    # Filter based on user input
+    filter(month >= input_date_range[1],
+           month <= input_date_range[2] %m+% months(1)) %>% 
+    #filter(name %in% input_accounts) %>% 
+    # Summarize pr assets/liabilites and month
+    group_by(month, account_category) %>% 
+    summarize(amount = sum(balance)) %>%
+    ungroup() %>%
+    # plotly prefers wide format
+    pivot_wider(id_cols = month,
+                names_from = account_category,
+                values_from = amount) %>%
+    # Plot all values as positive (liabilities are implicit negative)
+    mutate(Liabilities = -1*Liabilities) %>%
+    mutate(net = Assets-Liabilities) %>% 
+    mutate(month = floor_date(month, "month"))
+
+  plot_ly(plot_assets_liabilities,
+          x = ~month,
+          y=~Assets,
+          type = "bar",
+          name = "Assets",
+          hovertemplate = "%{x|%b %Y}: %{y:,.0f}",
+          marker = list(color = "green")) %>% 
+    add_trace(y =~Liabilities,
+              data = plot_assets_liabilities,
+              hovertemplate = "%{x|%b %Y}: %{y:,.0f}",
+              name = "Liabilities",
+              marker = list(color = "red")) %>%
+    add_trace(y =~net,
+              hovertemplate = "%{x|%b %Y}: %{y:,.0f}",
+              data = plot_assets_liabilities,
+              name = "Net Worth",
+              type = "scatter",
+              mode = "lines+markers",
+              marker = list(color = "black", size = 10),
+              line = list(color = "black")) %>%
+    layout(yaxis = list(title = ""),
+           xaxis = list(title = ""),
+           legend = list(x = 0, y = 1.15),
+           barmode = "group") %>% 
+    config(displayModeBar = FALSE) %>% 
+    layout(separators = plotly_separators)
+  
+}
+
+
+
+
