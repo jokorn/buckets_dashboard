@@ -1,5 +1,5 @@
 # Define server logic required to draw a histogram
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
     
   # Set up reactive values associated with the toggle actionbuttons
   show_bucketgroups <- reactiveVal(FALSE)
@@ -85,6 +85,32 @@ shinyServer(function(input, output) {
     }
     )
     
+    # Buttons for changing date interval quickly
+    observeEvent(input$select_all_dates, {
+      updateAirDateInput(session,
+                         inputId = "date_range",
+                         value = c(min(monthly$month), max(monthly$month)))
+      selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
+    }
+    )
+    
+    observeEvent(input$select_current_month, {
+      updateAirDateInput(session,
+                         inputId = "date_range",
+                         value = c(floor_date(today(), "month"), floor_date(today(), "month")))
+      selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
+    }
+    )
+    
+    observeEvent(input$select_current_year, {
+      updateAirDateInput(session,
+                         inputId = "date_range",
+                         value = c(floor_date(today(), "year"), floor_date(today(), "month")))
+      selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
+    }
+    )
+    
+    
     # Clear all selections in the income/expense report table when the button
     # is clicked
     observeEvent(input$clear_selection, {
@@ -101,7 +127,7 @@ shinyServer(function(input, output) {
       
       plot_net_wealth(assets_liabilities,
                       input$date_range,
-                      "")
+                      input$netwealth_account_filter_choices)
       
     })
     
@@ -189,4 +215,33 @@ shinyServer(function(input, output) {
         config(displayModeBar = FALSE) %>% 
         layout(separators = plotly_separators)
     })
+    
+    # Select all accounts in the drop down menu when the button is clicked
+    observeEvent(input$select_all_accounts, {
+      updateCheckboxGroupInput(inputId="netwealth_account_filter_choices", 
+                               choices = unique(assets_liabilities$name),
+                               selected = unique(assets_liabilities$name))
+    }
+    )
+    
+    # Display the savings rate table
+    output$savings_rate_table <- DT::renderDataTable({
+      # We need both start and end month to create the date filter
+      validate(
+        need(length(input$date_range) == 2, "Select both start and end month for the reports.")
+      )
+      
+      savings_rate(monthly %>% filter(category %in% input$expense_buckets_filter_choices |
+                                        bucket_group == "Income"),
+                   input$date_range,
+                   input$saving_buckets_filter_choices)
+    })
+    
+    # Select the saving buckets from config.R in the drop down menu when the button is clicked
+    observeEvent(input$select_config_saving_buckets, {
+      updateCheckboxGroupInput(inputId="saving_buckets_filter_choices", 
+                               selected = savings_buckets,
+                               choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()))
+    }
+    )
 })

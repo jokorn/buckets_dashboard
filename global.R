@@ -13,6 +13,16 @@ library(plotly)
 # Load the config file
 source("config.R")
 
+# Convenience function for easy conversion to user's currency (variables from config.R)
+format_currency <- function(value) {
+  scales::dollar(value,
+                 big.mark = user_mark,
+                 decimal.mark = user_dec.mark,
+                 accuracy = 0.01,
+                 prefix = ifelse(currency_before, user_currency, ""),
+                 suffix = ifelse(!currency_before, user_currency, ""))
+}
+
 # Set reporting period
 date_from <- today() %>% floor_date("year")
 date_to <- today()
@@ -280,13 +290,13 @@ transactions_table <- function(data_source,
 
 plot_net_wealth <- function(assets_liabilities,
                             input_date_range,
-                            input_accounts = "") {
+                            input_accounts) {
   
   plot_assets_liabilities <- assets_liabilities %>% 
     # Filter based on user input
     filter(month >= input_date_range[1],
            month <= input_date_range[2] %m+% months(1)) %>% 
-    #filter(name %in% input_accounts) %>% 
+    filter(name %in% input_accounts) %>% 
     # Summarize pr assets/liabilites and month
     group_by(month, account_category) %>% 
     summarize(amount = sum(balance)) %>%
@@ -300,6 +310,16 @@ plot_net_wealth <- function(assets_liabilities,
     mutate(net = Assets-Liabilities) %>% 
     mutate(month = floor_date(month, "month"))
 
+  # Create title with changes from start to end
+  start_value = plot_assets_liabilities %>% filter(month == min(month)) %>% pull(net)
+  end_value = plot_assets_liabilities %>% filter(month == max(month)) %>% pull(net)
+  change_in_percent = scales::percent((end_value - start_value)/abs(start_value), accuracy = 0.1)
+  
+  # Make the title
+  netwealth_title = str_c("Change from ", format_currency(start_value), " to ",
+                          format_currency(end_value), " = ", format_currency(end_value - start_value),
+                          " (", change_in_percent,")")
+  
   plot_ly(plot_assets_liabilities,
           x = ~month,
           y=~Assets,
@@ -323,12 +343,103 @@ plot_net_wealth <- function(assets_liabilities,
     layout(yaxis = list(title = ""),
            xaxis = list(title = ""),
            legend = list(x = 0, y = 1.15),
-           barmode = "group") %>% 
+           barmode = "group",
+           title = netwealth_title) %>% 
     config(displayModeBar = FALSE) %>% 
     layout(separators = plotly_separators)
   
 }
 
 
+savings_rate <- function(monthly,
+                         input_date_range,
+                         input_saving_buckets_filter_choices) {
+  
+  # Separate into Income, Savings (based on buckets in config.R) and Expenses
+  prepare_savings_rate <- monthly %>% 
+    filter(month >= input_date_range[1],
+           month <= input_date_range[2]) %>% 
+    mutate(savings_cat = case_when(bucket_group == "Income" ~ "Income",
+                                   category %in% input_saving_buckets_filter_choices ~ "Savings",
+                                   TRUE ~ "Expenses")) %>%
+    # Calculate per month and make wide
+    group_by(month, savings_cat) %>% 
+    summarize(amount = sum(amount)) %>%
+    ungroup() %>% 
+    pivot_wider(names_from = savings_cat,
+                values_from = amount,
+                id_cols = month) %>%
+    mutate(Savings = Savings * -1) %>% 
+    mutate(not_spend = Income + Expenses) %>%
+    mutate(percent_notspend = not_spend / Income,
+           percent_savings = Savings / Income,
+           savings_notspend = not_spend+Savings,
+           percent_savings_and_notspend = savings_notspend / Income)
+  
+  # Calculate totals based on the above
+  total_savings_rate <- summarise(prepare_savings_rate,
+                                  month = "Total",
+                                  Income = sum(Income),
+                                  "Not spend" = sum(not_spend),
+                                  "Saving buckets" = sum(Savings),
+                                  "Not spend + Saving buckets" = `Not spend` + `Saving buckets`,
+                                  "Proportion Not spend" = `Not spend` / Income,
+                                  "Proportion Saving buckets" = `Saving buckets` / Income,
+                                  "Proportion Not spend + Saving buckets" = `Not spend + Saving buckets` / Income) %>% 
+    # Format the columns as currency and percent
+    mutate(Income = format_currency(Income),
+           `Saving buckets` = format_currency(`Saving buckets`),
+           `Not spend + Saving buckets` = format_currency(`Not spend + Saving buckets`),
+           `Not spend` = format_currency(`Not spend`)) %>% 
+    mutate(`Proportion Not spend` = scales::percent(`Proportion Not spend`, accuracy = 0.1),
+           `Proportion Saving buckets` = scales::percent(`Proportion Saving buckets`, accuracy = 0.1),
+           `Proportion Not spend + Saving buckets` = scales::percent(`Proportion Not spend + Saving buckets`, accuracy = 0.1)) %>% 
+    # Trick to make wide with regards to months
+    column_to_rownames("month") %>% 
+    t() %>% 
+    as.data.frame() %>%
+    rownames_to_column(" ")
+    
+  final_savings_rate <- prepare_savings_rate %>% 
+    # Format columns as currency and percent
+    mutate(Income = format_currency(Income),
+           Savings = format_currency(Savings),
+           savings_notspend = format_currency(savings_notspend),
+           not_spend = format_currency(not_spend)) %>% 
+    mutate(percent_notspend = scales::percent(percent_notspend, accuracy = 0.1),
+           percent_savings = scales::percent(percent_savings, accuracy = 0.1),
+           percent_savings_and_notspend = scales::percent(percent_savings_and_notspend, accuracy = 0.1)) %>% 
+    # Align months with the rest of the Dahsboard
+    mutate(month = strftime(month, "%Y-%b")) %>% 
+    # Remove expenses and order the rows
+    select(-Expenses) %>% 
+    select(month,
+           Income,
+           "Not spend" = not_spend,
+           "Saving buckets" = Savings,
+           "Not spend + Saving buckets" = savings_notspend,
+           "Proportion Not spend" = percent_notspend,
+           "Proportion Saving buckets" = percent_savings,
+           "Proportion Not spend + Saving buckets" = percent_savings_and_notspend) %>% 
+    # Trick to make wide with regards to months
+    column_to_rownames("month") %>% 
+    t() %>% 
+    as.data.frame() %>%
+    rownames_to_column(" ") %>% 
+    # Add the "Total" column 
+    left_join(total_savings_rate, by = " ")
+  
+  # Create the datatable
+  final_savings_rate %>% 
+    datatable(rownames = FALSE,
+              selection = "none",
+              extensions = 'FixedColumns',
+              options = list(dom = "t", 
+                             paging = FALSE,
+                             scrollX = TRUE,
+                             fixedColumns = list(leftColumns = 1))) %>% 
+    formatStyle(" ",
+                fontWeight = "bold")
+}
 
 

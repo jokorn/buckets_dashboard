@@ -28,6 +28,16 @@ shinyUI(fluidPage(
                                value = c(date_from, date_to),
                                minDate = min(monthly$month),
                                maxDate = max(monthly$month)),
+            actionButton(inputId = "select_all_dates", 
+                         label = "All Months",
+                         style="margin-bottom: 5px; margin-top: -10px;"),
+            actionButton(inputId = "select_current_month", 
+                         label = "Current Month",
+                         style="margin-bottom: 5px; margin-top: -10px;"),
+            br(),
+            actionButton(inputId = "select_current_year", 
+                         label = "Current Year",
+                         style="margin-bottom: 5px;"),
             # Input controls for filtering Buckets
             p(strong("Select buckets for the reports"),
               style="margin-bottom: 5px;"),
@@ -62,7 +72,33 @@ shinyUI(fluidPage(
                      style="margin-bottom: 5px;"),
         actionButton(inputId = "clear_selection", 
                      label = "Clear Selection",
-                     style="margin-bottom: 5px;")
+                     style="margin-bottom: 5px;"),
+        
+        # Input controls for filtering accounts in net wealth report
+        p(strong("Select accounts for Net Wealth"),
+          style="margin-bottom: 5px;"),
+        actionButton(inputId = "select_all_accounts", 
+                     label = "Show All Accounts",
+                     style="margin-bottom: 5px;"),
+        dropdown(
+          inputId = "netwealth_account_filter",
+          label = "Select Accounts",
+          prettyCheckboxGroup(inputId = "netwealth_account_filter_choices",
+                              label = "Accounts",
+                              selected = unique(assets_liabilities$name),
+                              choices = unique(assets_liabilities$name))),
+        p(strong("Savings Rate View"),
+          style="margin-bottom: 5px;"),
+        actionButton(inputId = "select_config_saving_buckets", 
+                     label = "Select Saving Buckets From \"config.R\"",
+                     style="margin-bottom: 5px;"),
+        dropdown(
+          inputId = "saving_buckets_filter",
+          label = "Select Saving Buckets",
+          prettyCheckboxGroup(inputId = "saving_buckets_filter_choices",
+                              label = "Saving Buckets",
+                              selected = savings_buckets,
+                              choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop())))
         ),
         
         # Use tabsets for the main panel to easily switch between reports
@@ -81,8 +117,9 @@ shinyUI(fluidPage(
             tabPanel("Net Wealth",
                      p(strong("Hover to see amounts")),
                      div(style = zoom_netwealth,
-                         plotlyOutput("net_wealth")))
-                     
+                         plotlyOutput("net_wealth"))),
+            tabPanel("Savings Rate",
+                     DT::dataTableOutput("savings_rate_table"))
                      
             )
         )
