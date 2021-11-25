@@ -370,7 +370,7 @@ savings_rate <- function(monthly,
                 values_from = amount,
                 id_cols = month) %>%
     mutate(Savings = Savings * -1) %>% 
-    mutate(not_spend = Income + Expenses) %>%
+    mutate(not_spend = Income + Expenses - Savings) %>%
     mutate(percent_notspend = not_spend / Income,
            percent_savings = Savings / Income,
            savings_notspend = not_spend+Savings,
@@ -380,14 +380,16 @@ savings_rate <- function(monthly,
   total_savings_rate <- summarise(prepare_savings_rate,
                                   month = "Total",
                                   Income = sum(Income),
-                                  "Not spend" = sum(not_spend),
-                                  "Saving buckets" = sum(Savings),
-                                  "Not spend + Saving buckets" = `Not spend` + `Saving buckets`,
-                                  "Proportion Not spend" = `Not spend` / Income,
-                                  "Proportion Saving buckets" = `Saving buckets` / Income,
-                                  "Proportion Not spend + Saving buckets" = `Not spend + Saving buckets` / Income) %>% 
+                                  Expenses = sum(Expenses),
+                                  "Saving buckets" = sum(Savings)) %>% 
+    mutate("Not spend" = Income + Expenses - `Saving buckets`,
+           "Not spend + Saving buckets" = `Not spend` + `Saving buckets`,
+           "Proportion Not spend" = `Not spend` / Income,
+           "Proportion Saving buckets" = `Saving buckets` / Income,
+           "Proportion Not spend + Saving buckets" = `Not spend + Saving buckets` / Income) %>% 
     # Format the columns as currency and percent
     mutate(Income = format_currency(Income),
+           Expenses = format_currency(Expenses),
            `Saving buckets` = format_currency(`Saving buckets`),
            `Not spend + Saving buckets` = format_currency(`Not spend + Saving buckets`),
            `Not spend` = format_currency(`Not spend`)) %>% 
@@ -400,9 +402,11 @@ savings_rate <- function(monthly,
     as.data.frame() %>%
     rownames_to_column(" ")
     
+  
   final_savings_rate <- prepare_savings_rate %>% 
     # Format columns as currency and percent
     mutate(Income = format_currency(Income),
+           Expenses = format_currency(Expenses),
            Savings = format_currency(Savings),
            savings_notspend = format_currency(savings_notspend),
            not_spend = format_currency(not_spend)) %>% 
@@ -412,14 +416,14 @@ savings_rate <- function(monthly,
     # Align months with the rest of the Dahsboard
     mutate(month = strftime(month, "%Y-%b")) %>% 
     # Remove expenses and order the rows
-    select(-Expenses) %>% 
     select(month,
            Income,
-           "Not spend" = not_spend,
+           Expenses,
            "Saving buckets" = Savings,
+           "Not spend" = not_spend,
            "Not spend + Saving buckets" = savings_notspend,
-           "Proportion Not spend" = percent_notspend,
            "Proportion Saving buckets" = percent_savings,
+           "Proportion Not spend" = percent_notspend,
            "Proportion Not spend + Saving buckets" = percent_savings_and_notspend) %>% 
     # Trick to make wide with regards to months
     column_to_rownames("month") %>% 
