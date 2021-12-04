@@ -23,6 +23,25 @@ format_currency <- function(value) {
                  suffix = ifelse(!currency_before, user_currency, ""))
 }
 
+# Variables for correct zoom based on user input in config.R
+zoom_css <- glue::glue("
+            body {{
+               -moz-transform: scale({zoom_value}, {zoom_value});
+               zoom: {zoom_value};
+               zoom: {scales::percent(zoom_value, accuracy = 1)};
+            }}
+            ")
+
+zoom_netwealth <- glue::glue("
+            moz-transform: scale({1/zoom_value}, {1/zoom_value});
+            zoom: {1/zoom_value};
+            zoom: {scales::percent(1/zoom_value, accuracy = 1)};
+            ")   # Zoom messes up hover in the bar chart (Net Wealth) so must be reversed. 
+                 # The values here should be 1/[value in zoom_value], 
+                 # e.g. 1/80% = 125%
+
+
+
 # Set reporting period
 date_from <- today() %>% floor_date("year")
 date_to <- today()
