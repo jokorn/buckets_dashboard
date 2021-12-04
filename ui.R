@@ -119,6 +119,7 @@ shinyUI(fluidPage(
                      div(style = zoom_netwealth,
                          plotlyOutput("net_wealth"))),
             tabPanel("Savings Rate",
+                     p(strong("Specify standard saving buckets in \"config.R\". Savings buckets are buckets used for transfers to off-budget saving accounts.")),
                      DT::dataTableOutput("savings_rate_table"))
                      
             )
