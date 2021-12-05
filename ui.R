@@ -7,7 +7,11 @@ shinyUI(fluidPage(
     
     
     # Application title
-    titlePanel("Buckets Dashboard"),
+    titlePanel(tagList(
+      h1("Buckets Dashboard", style = "display: inline"),
+      actionButton("reload_app", "Reload .buckets file", style = "position: absolute; right: 18px;")
+      ),
+      windowTitle = "Buckets Dashboard"),
 
     # Sidebar with input controls / filters
     sidebarLayout(

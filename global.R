@@ -283,6 +283,8 @@ transactions_table <- function(data_source,
   
   # Finalize data and keep only relevant columns
   data_source_ready <- data_source_prepare %>% 
+    mutate(row_num = row_number()) %>% 
+    arrange(desc(row_num), posted) %>%
     mutate(amount = amount / 100) %>% 
     select("Date" = posted,
            "Bucket Group" = bucket_group,
@@ -294,6 +296,7 @@ transactions_table <- function(data_source,
   # datatables in tabsets, so use scrollY instead
   datatable(data_source_ready,
             options = list(dom = "fti", 
+                           order = list(list(1, 'desc'), list(0, 'desc')),
                            paging = FALSE,
                            scrollY = height_transactions_report,
                            scrollCollapse = TRUE)) %>% 
@@ -306,6 +309,7 @@ transactions_table <- function(data_source,
                    mark = user_mark,
                    dec.mark = user_dec.mark,
                    before = currency_before)
+  
 }
 
 plot_net_wealth <- function(assets_liabilities,
