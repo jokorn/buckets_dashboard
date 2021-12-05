@@ -32,7 +32,7 @@ shinyServer(function(input, output, session) {
       need(length(input$date_range) == 2, "Select both start and end month for the reports.")
     )
       # Provide all the user input to the function
-      dt <- transactions_table(data_source = everything %>% 
+      transactions_table(data_source = everything %>% 
                            filter(posted >= input$date_range[[1]],
                                   posted <= input$date_range[[2]]),
                          cells_filter = input$expenses_pr_month_cells_selected,
