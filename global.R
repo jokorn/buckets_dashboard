@@ -32,7 +32,7 @@ zoom_css <- glue::glue("
             }}
             ")
 
-zoom_netwealth <- glue::glue("
+zoom_reverse <- glue::glue("
             moz-transform: scale({1/zoom_value}, {1/zoom_value});
             zoom: {1/zoom_value};
             zoom: {scales::percent(1/zoom_value, accuracy = 1)};
@@ -234,6 +234,7 @@ expense_income_table <- function(data_source,
     formatStyle(c(date_filter %>% strftime("%Y-%b"),
                 "Average",
                 "Total"),
+                "white-space" = "nowrap",
               color = DT::styleInterval(cuts = c(-0.0000001, 0.0000001),
                                         values = c("red", "gray", "green"))) %>%
     formatCurrency(c(date_filter %>% strftime("%Y-%b"),

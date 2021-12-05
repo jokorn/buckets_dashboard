@@ -244,4 +244,5 @@ shinyServer(function(input, output, session) {
                                choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()))
     }
     )
+    
 })
