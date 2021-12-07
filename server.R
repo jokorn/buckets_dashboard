@@ -31,10 +31,11 @@ shinyServer(function(input, output, session) {
       validate(
       need(length(input$date_range) == 2, "Select both start and end month for the reports.")
     )
+      
       # Provide all the user input to the function
       transactions_table(data_source = everything %>% 
-                           filter(posted >= input$date_range[[1]],
-                                  posted <= input$date_range[[2]]),
+                           filter(floor_date(posted, "month") >= input$date_range[[1]],
+                                  floor_date(posted, "month") <= input$date_range[[2]]),
                          cells_filter = input$expenses_pr_month_cells_selected,
                          buckets_filter = c(input$income_buckets_filter_choices,
                                             input$expense_buckets_filter_choices),
@@ -105,7 +106,8 @@ shinyServer(function(input, output, session) {
     observeEvent(input$select_current_year, {
       updateAirDateInput(session,
                          inputId = "date_range",
-                         value = c(floor_date(today(), "year"), floor_date(today(), "month")))
+                         value = c(max(today() %>% floor_date("year"), dates_available[1]),
+                                   floor_date(today(), "month")))
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
     }
     )
@@ -123,6 +125,11 @@ shinyServer(function(input, output, session) {
       # Again we need two dates to create the date filter
       validate(
         need(length(input$date_range) == 2, "Select both start and end month for the reports.")
+      )
+      
+      # And we need at least one account
+      validate(
+        need(length(input$netwealth_account_filter_choices) >= 1, "Select at least one account to show net wealth.")
       )
       
       plot_net_wealth(assets_liabilities,

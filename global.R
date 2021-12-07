@@ -33,18 +33,21 @@ zoom_css <- glue::glue("
             ")
 
 zoom_reverse <- glue::glue("
+            .plotly.html-widget {{
             moz-transform: scale({1/zoom_value}, {1/zoom_value});
             zoom: {1/zoom_value};
             zoom: {scales::percent(1/zoom_value, accuracy = 1)};
-            ")   # Zoom messes up hover in the bar chart (Net Wealth) so must be reversed. 
+            }}")   # Zoom messes up hover in the bar chart (Net Wealth) so must be reversed. 
                  # The values here should be 1/[value in zoom_value], 
                  # e.g. 1/80% = 125%
 
-
-
-# Set reporting period
-date_from <- today() %>% floor_date("year")
-date_to <- today()
+error_position_css <- glue::glue(".shiny-output-error-validation {{
+              position: absolute !important;
+              top: {error_position_top} !important;
+              left: {error_position_left} !important;
+              display: block !important;
+              height: 0px !important;
+              }}")
 
 # Connect to database and the relevant tables
 con <- dbConnect(SQLite(), path_to_buckets)
@@ -130,18 +133,21 @@ assets_liabilities <- acc_trans %>%
   summarise(net_flow = sum(amount/100)) %>% 
   ungroup() %>% 
   # Add the end balance and account names
-  left_join(acc_balance %>% select(account_id = id,
+  right_join(acc_balance %>% select(account_id = id,
                                    end_balance = balance,
                                    name),
             by = "account_id") %>% 
+  tidyr::complete(month, tidyr::nesting(account_id, name, end_balance), fill = list(amount = 0)) %>% 
+  filter(!is.na(month)) %>% 
+  mutate_if(is.numeric, ~replace_na(.x, 0)) %>% 
   # Prepare to accumulate = take end balance and then pr month add net flow (cumulatively)
-  group_by(name, end_balance) %>%
+  group_by(account_id, name, end_balance) %>%
   group_nest() %>% 
   # Do the actual accumulation
   mutate(balance = map2(end_balance, data, ~ .y %>%
                        arrange(desc(month)) %>%
                        mutate(net_flow = net_flow*-1) %>%
-                       add_case(month = .$month[1] %m+% months(1), net_flow = .x/100, account_id = .$account_id[1]) %>% 
+                       add_case(month = .$month[1] %m+% months(1), net_flow = .x/100) %>% 
                        arrange(desc(month)) %>%
                        mutate(month = month - days(1)) %>% 
                        mutate(balance = accumulate(net_flow, sum)))) %>% 
@@ -154,6 +160,10 @@ assets_liabilities <- acc_trans %>%
 # Create date variable for use in UI/server 
 dates_available <- range(monthly$month) 
 
+# Set reporting period
+date_from <- max(today() %>% floor_date("year"), dates_available[1])
+date_to <- today()
+
 # Disconnect from DB
 dbDisconnect(con)
 
@@ -163,6 +173,7 @@ expense_income_table <- function(data_source,
                                  buckets_filter,
                                  bucketgroups_view = FALSE,
                                  show_zero_totals = TRUE) {
+  
   # Switch depending on whether it is buckets or bucket groups view
   if (bucketgroups_view) {
     data_source_prepare <- data_source %>% 
@@ -324,6 +335,9 @@ plot_net_wealth <- function(assets_liabilities,
     group_by(month, account_category) %>% 
     summarize(amount = sum(balance)) %>%
     ungroup() %>%
+    mutate(account_category = factor(account_category, levels = c("Assets", "Liabilities"))) %>% 
+    tidyr::complete(month, account_category, fill = list(amount = 0)) %>% 
+    mutate(account_category = as.character(account_category)) %>% 
     # plotly prefers wide format
     pivot_wider(id_cols = month,
                 names_from = account_category,
@@ -389,6 +403,11 @@ savings_rate <- function(monthly,
     group_by(month, savings_cat) %>% 
     summarize(amount = sum(amount)) %>%
     ungroup() %>% 
+    mutate(savings_cat = factor(savings_cat, levels = c("Income",
+                                                        "Expenses",
+                                                        "Savings"))) %>% 
+    tidyr::complete(month, savings_cat, fill = list(amount = 0)) %>% 
+    mutate(savings_cat = as.character(savings_cat)) %>% 
     pivot_wider(names_from = savings_cat,
                 values_from = amount,
                 id_cols = month) %>%

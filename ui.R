@@ -1,8 +1,11 @@
 # Define UI
 shinyUI(fluidPage(
-    # Adjust zoom to fit 1 year without horizontal scrolling
-    tags$style(
-        zoom_css
+    
+    tags$style( 
+        str_c(zoom_reverse, #Reverse zoom for plotly graphs to avoid glitches and make hover work
+              zoom_css, # Adjust zoom to fit 1 year without horizontal scrolling
+              error_position_css) #Manually adjust position of validation messages
+        
     ),
     
     
@@ -66,7 +69,7 @@ shinyUI(fluidPage(
         tags$div(style = "height: 15px;"),
         
         # Input controls for the Income/Expense report
-        p(strong("Income/Expense Report View"),
+        p(strong("Income/Expense View"),
           style="margin-bottom: 5px;"),
         actionButton(inputId = "toggle_report_view", 
                      label = "Toggle: Buckets / Bucket Groups",
@@ -79,7 +82,7 @@ shinyUI(fluidPage(
                      style="margin-bottom: 5px;"),
         
         # Input controls for filtering accounts in net wealth report
-        p(strong("Select accounts for Net Wealth"),
+        p(strong("Net Wealth View"),
           style="margin-bottom: 5px;"),
         actionButton(inputId = "select_all_accounts", 
                      label = "Show All Accounts",
@@ -113,19 +116,20 @@ shinyUI(fluidPage(
                        style = "margin: 5px"),
                      DT::dataTableOutput("transactions_table")),
             tabPanel("Sunburst Chart - Income",
-                     p(strong("Click \"Other\" to see the buckets within that group and see \"config.R\" to change the threshold for \"Other\"")),
-                     div(style = zoom_reverse,
-                     plotlyOutput("income_sunburstchart", height = height_income_piechart))),
+                     p(strong("Click \"Other\" to see the buckets within that group and see \"config.R\" to change the threshold for \"Other\""),
+                       style="margin: 5px;"),
+                     plotlyOutput("income_sunburstchart", height = height_income_piechart)),
             tabPanel("Sunburst Chart - Expenses",
-                     p(strong("Click a bucket group to see the buckets within that group")),
-                     div(style = zoom_reverse,
-                     plotlyOutput("expense_sunburstchart", height = height_expenses_sunburst))),
+                     p(strong("Click a bucket group to see the buckets within that group"),
+                       style="margin: 5px;"),
+                     plotlyOutput("expense_sunburstchart", height = height_expenses_sunburst)),
             tabPanel("Net Wealth",
-                     p(strong("Hover to see amounts")),
-                     div(style = zoom_reverse,
-                         plotlyOutput("net_wealth"))),
+                     p(strong("Hover to see amounts"),
+                       style="margin: 5px;"),
+                     plotlyOutput("net_wealth")),
             tabPanel("Savings Rate",
-                     p(strong("Specify standard saving buckets in \"config.R\". Savings buckets are buckets used for transfers to off-budget saving accounts.")),
+                     p(strong("Specify standard saving buckets in \"config.R\". Savings buckets are buckets used for transfers to off-budget saving accounts."),
+                       style="margin: 5px;"),
                      DT::dataTableOutput("savings_rate_table"))
                      
             )
