@@ -205,7 +205,7 @@ expense_income_table <- function(data_source,
   # Depending on actionbutton status, filter out columns with total = 0
   if (show_zero_totals == FALSE){
     data_source_prepare <- data_source_prepare %>% 
-      filter(Total != 0)
+      filter(if_any(is.numeric, ~ .x != 0))
   }
   
   # Add "total" row at the bottom

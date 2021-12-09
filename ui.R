@@ -75,7 +75,7 @@ shinyUI(fluidPage(
                      label = "Toggle: Buckets / Bucket Groups",
                      style="margin-bottom: 5px;"),
         actionButton(inputId = "toggle_zero_totals", 
-                     label = "Toggle: Buckets With Zero Total",
+                     label = "Toggle: Buckets With All Zeros",
                      style="margin-bottom: 5px;"),
         actionButton(inputId = "clear_selection", 
                      label = "Clear Selection",
