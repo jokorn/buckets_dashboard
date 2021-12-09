@@ -1,4 +1,4 @@
-# Define server logic required to draw a histogram
+# Define server logic
 shinyServer(function(input, output, session) {
     
   # Set up reactive values associated with the toggle actionbuttons
@@ -10,6 +10,12 @@ shinyServer(function(input, output, session) {
       # We need both start and end month to create the date filter
       validate(
         need(length(input$date_range) == 2, "Select both start and end month for the reports.")
+      )
+      
+      # We need at least one income or expense bucket
+      validate(
+        need(length(c(input$income_buckets_filter_choices,
+                      input$expense_buckets_filter_choices)) >= 1, "Select at least one income or expense bucket.")
       )
       
       # Provide all the user input to the function
@@ -30,8 +36,14 @@ shinyServer(function(input, output, session) {
       # We need both start and end month to create the date filter
       validate(
       need(length(input$date_range) == 2, "Select both start and end month for the reports.")
-    )
-      
+      )
+     
+      # We need at least one income or expense bucket to any transactions.
+      validate(
+        need(length(c(input$income_buckets_filter_choices,
+                      input$expense_buckets_filter_choices)) >= 1, "Select at least one income or expense bucket.")
+      )
+       
       # Provide all the user input to the function
       transactions_table(data_source = everything %>% 
                            filter(floor_date(posted, "month") >= input$date_range[[1]],
@@ -138,14 +150,19 @@ shinyServer(function(input, output, session) {
       
     })
     
-    # Create the Income pie chart
+    # Create the Income sunburst chart
     output$income_sunburstchart <- renderPlotly({
       # Again we need two dates to create the date filter
       validate(
         need(length(input$date_range) == 2, "Select both start and end month for the reports.")
       )
       
-      # Render as pie chart
+      # We need at least one income bucket
+      validate(
+        need(length(input$income_buckets_filter_choices) >= 1, "Select at least one income bucket.")
+      )
+      
+      # Render as sunburst chart
       plot_ly(data = {first <- monthly %>% 
                 filter(month >= input$date_range[[1]],
                        month <= input$date_range[[2]]) %>% 
@@ -184,6 +201,11 @@ shinyServer(function(input, output, session) {
       # Again we need to dates to filer on the date range
       validate(
         need(length(input$date_range) == 2, "Select both start and end month for the reports.")
+      )
+      
+      # Select at least one expense bucket to show the report
+      validate(
+        need(length(input$expense_buckets_filter_choices) >= 1, "Select at least one expense bucket.")
       )
       
       # Create the sunburst chart including create the data needed for the chart
@@ -238,8 +260,14 @@ shinyServer(function(input, output, session) {
         need(length(input$date_range) == 2, "Select both start and end month for the reports.")
       )
       
-      savings_rate(monthly %>% filter(category %in% input$expense_buckets_filter_choices |
-                                        bucket_group == "Income"),
+      # We need at least one income or expense bucket
+      validate(
+        need(length(c(input$income_buckets_filter_choices,
+                      input$expense_buckets_filter_choices)) >= 1, "Select at least one income or expense bucket.")
+      )
+      
+      savings_rate(monthly %>% filter(category %in% c(input$income_buckets_filter_choices,
+                                                      input$expense_buckets_filter_choices)),
                    input$date_range,
                    input$saving_buckets_filter_choices)
     })
@@ -252,6 +280,7 @@ shinyServer(function(input, output, session) {
     }
     )
     
+    # Reload data and app when the "Reload .buckets file" button is clicked
     observeEvent(input$reload_app, {
       source("global.R")
       session$reload()
