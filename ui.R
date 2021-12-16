@@ -130,7 +130,11 @@ shinyUI(fluidPage(
             tabPanel("Savings Rate",
                      p(strong("Specify standard saving buckets in \"config.R\". Savings buckets are buckets used for transfers to off-budget saving accounts."),
                        style="margin: 5px;"),
-                     DT::dataTableOutput("savings_rate_table"))
+                     DT::dataTableOutput("savings_rate_table")),
+            tabPanel("Bucket Balances",
+                     p(strong("Always shows the current balance in the Buckets. Not affected by filters."),
+                       style="margin: 5px;"),
+                     plotlyOutput("bucket_balances", height = height_bucket_balances))
                      
             )
         )

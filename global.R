@@ -61,7 +61,8 @@ acc_trans <- tbl(con, "account_transaction") %>% collect()
 # Add bucket groups to buckets
 buckets_ready <- buckets %>% 
   select(bucket_id = id, 
-         group_id, 
+         group_id,
+         balance,
          ranking,
          category = name) %>%
   collect() %>% 
@@ -488,4 +489,65 @@ savings_rate <- function(monthly,
                 fontWeight = "bold")
 }
 
+
+plot_bucket_balance <- function(buckets_ready) {
+  
+  # Make a plot per bucket group
+  bucket_plots <- buckets_ready %>%
+    # Balance correction
+    mutate(balance = balance / 100) %>% 
+    # Enforce order of buckets similar to the one in Buckets app
+    arrange(group_id, ranking) %>%
+    mutate(category = fct_inorder(category) %>% fct_rev()) %>%
+    mutate(bucket_group = fct_inorder(bucket_group)) %>%
+    # Remove buckets not in a bucket group
+    filter(!is.na(bucket_group)) %>% 
+    # Nest so we can make a plot per bucket_group
+    group_nest(bucket_group) %>%
+    # Create an index for the bucket_group - needed as input when plotting
+    # to create the titles per bucket group
+    mutate(row_num = row_number()) %>% 
+    # Calculate height of the plot based on number of buckets in the bucket group
+    # plus some (set to 1.5 here) for margins and titles
+    mutate(height = map_int(data, nrow) + 1.5) %>% 
+    mutate(height = height / sum(height)) %>% 
+    # Create the actual plot
+    mutate(p = pmap(list(data = data,
+                         row_num = row_num,
+                         bucket_group = bucket_group),
+                    function(data, row_num, bucket_group) { 
+                      data %>% 
+                        # Only plot the buckets within the bucket group
+                        mutate(category = fct_drop(category)) %>% 
+                        # Create the plotly bar chart
+                        plot_ly(x = ~balance, y = ~category, color = bucket_group, type = "bar") %>% 
+                        # Use annotations to create the title per subplot
+                        # This is where the index (row_num) is needed for correct placement of the title
+                        add_annotations(
+                          x = 0,
+                          y = 1,
+                          xref = str_c("x", row_num, " domain"),
+                          yref = str_c("y", row_num, " domain"),
+                          text = str_c("<b>",bucket_group,"</b>"),
+                          xanchor = "left",
+                          yanchor = "bottom",
+                          showarrow = F) %>% 
+                        # Make sure we show all the buckets with dtick
+                        layout(yaxis = list(type = "category", dtick = 1),
+                               separators = plotly_separators)}))
+  
+  # Now put all the separate bucket group plots together using subplot
+  bucket_plots %>% 
+    pull(p) %>% 
+    subplot(nrows = nrow(bucket_plots),
+            margin = c(0, 0, 0.005, 0.01),
+            shareX = TRUE,
+            shareY = TRUE,
+            titleY = FALSE,
+            titleX = FALSE,
+            heights = bucket_plots$height) %>% 
+    layout(showlegend = FALSE) %>% 
+    config(displayModeBar = FALSE)
+           
+}
 

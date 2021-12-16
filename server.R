@@ -286,4 +286,9 @@ shinyServer(function(input, output, session) {
       session$reload()
     })
     
+    # Plot bucket balances
+    output$bucket_balances <- renderPlotly( {
+      plot_bucket_balance(buckets_ready)
+    }) 
+    
 })
