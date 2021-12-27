@@ -23,6 +23,9 @@ format_currency <- function(value) {
                  suffix = ifelse(!currency_before, user_currency, ""))
 }
 
+# Hovertemplate for plotly plots
+hovertemplate <- glue::glue("%{{x|%b %Y}}: %{{y:{plotly_separators}0f}}")
+
 # Variables for correct zoom based on user input in config.R
 zoom_css <- glue::glue("
             body {{
@@ -48,6 +51,8 @@ error_position_css <- glue::glue(".shiny-output-error-validation {{
               display: block !important;
               height: 0px !important;
               }}")
+
+form_group_css <- ".form-group {margin-bottom: 5px;}"
 
 # Connect to database and the relevant tables
 con <- dbConnect(SQLite(), path_to_buckets)
@@ -119,6 +124,33 @@ monthly <- everything %>%
   arrange(month) %>% 
   complete(nesting(category, bucket_group), month, fill = list(amount = 0)) %>% 
   relocate(bucket_group)
+
+# Buckets summary pr month
+buckets_monthly <- transactions %>%
+  left_join(buckets, by = c("bucket_id" = "id")) %>%
+  collect() %>%
+  mutate(transaction = !is.na(account_trans_id)) %>%
+  mutate(positive = amount > 0) %>%
+  mutate(category = case_when(transaction & positive ~ "Transaction - Ingoing",
+                              transaction & !positive ~ "Transaction - Outgoing",
+                              !transaction & positive ~ "Budgeted - Ingoing",
+                              !transaction & !positive ~ "Budgeted - Outgoing")) %>%
+  select(posted,
+         amount,
+         name,
+         category) %>%
+  mutate(amount = amount / 100) %>%
+  mutate(posted = floor_date(ymd(str_sub(posted, 1, 10)), "month")) %>%
+  group_by(posted, name, category) %>%
+  summarise(amount = sum(amount)) %>%
+  mutate(name = factor(name),
+         category = factor(category,
+                           levels = c("Budgeted - Ingoing",
+                                      "Transaction - Ingoing",
+                                      "Budgeted - Outgoing",
+                                      "Transaction - Outgoing")))%>%
+  tidyr::complete(name, category, posted, fill = list(amount = 0)) %>% 
+  distinct()
 
 # Create account balances from end balance and transactions
 assets_liabilities <- acc_trans %>%
@@ -363,15 +395,15 @@ plot_net_wealth <- function(assets_liabilities,
           y=~Assets,
           type = "bar",
           name = "Assets",
-          hovertemplate = "%{x|%b %Y}: %{y:,.0f}",
+          hovertemplate = hovertemplate,
           marker = list(color = "green")) %>% 
     add_trace(y =~Liabilities,
               data = plot_assets_liabilities,
-              hovertemplate = "%{x|%b %Y}: %{y:,.0f}",
+              hovertemplate = hovertemplate,
               name = "Liabilities",
               marker = list(color = "red")) %>%
     add_trace(y =~net,
-              hovertemplate = "%{x|%b %Y}: %{y:,.0f}",
+              hovertemplate = hovertemplate,
               data = plot_assets_liabilities,
               name = "Net Worth",
               type = "scatter",
@@ -520,7 +552,11 @@ plot_bucket_balance <- function(buckets_ready) {
                         # Only plot the buckets within the bucket group
                         mutate(category = fct_drop(category)) %>% 
                         # Create the plotly bar chart
-                        plot_ly(x = ~balance, y = ~category, color = bucket_group, type = "bar") %>% 
+                        plot_ly(x = ~balance,
+                                y = ~category,
+                                color = bucket_group,
+                                type = "bar",
+                                hovertemplate = glue::glue("%{{y}}: %{{x:{plotly_separators}0f}}")) %>% 
                         # Use annotations to create the title per subplot
                         # This is where the index (row_num) is needed for correct placement of the title
                         add_annotations(
@@ -551,3 +587,56 @@ plot_bucket_balance <- function(buckets_ready) {
            
 }
 
+plot_bucket_transactions <- function(buckets_monthly,
+                                     input_date_range,
+                                     input_bucket_selected) {
+  bucket_plot <- buckets_monthly %>% 
+    filter(name == input_bucket_selected) %>% 
+    filter(posted >= dates_available[1] &
+             posted <= dates_available[2])
+  
+  bucket_balance <- bucket_plot %>% 
+    group_by(posted) %>% 
+    summarise(change = sum(amount)) %>% 
+    arrange(posted) %>% 
+    mutate(balance = accumulate(change, `+`))
+  
+  bucket_plot_ready <- bucket_plot %>% 
+    filter(posted >= input_date_range[1] &
+             posted <= input_date_range[2])
+  
+  bucket_balance_ready <- bucket_balance %>% 
+    filter(posted >= input_date_range[1] &
+             posted <= input_date_range[2])
+
+  plot_ly() %>%
+    add_bars(data = bucket_plot_ready %>%
+               filter(category %>% str_detect("Outgoing")),
+             x = ~posted,
+             y = ~ amount,
+             hovertemplate = hovertemplate,
+             color = ~category) %>%
+    add_bars(data = bucket_plot_ready %>%
+               filter(category %>% str_detect("Ingoing")),
+             x = ~posted,
+             y = ~ amount,
+             hovertemplate = hovertemplate,
+             base = 0,
+             color = ~category) %>%
+    add_trace(data = bucket_balance_ready,
+              x = ~posted,
+              y = ~balance,
+              type = "scatter",
+              mode = "lines+markers",
+              marker = list(color = "black", size = 10),
+              line = list(color = "black"),
+              hovertemplate = hovertemplate,
+              name = "Balance") %>% 
+    layout(yaxis = list(title = "Change"),
+           xaxis = list(title = ""),
+           barmode = "stack",
+           title = input_bucket_selected) %>% 
+    config(displayModeBar = FALSE) %>% 
+    layout(separators = plotly_separators)
+  
+}

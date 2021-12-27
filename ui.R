@@ -4,7 +4,8 @@ shinyUI(fluidPage(
     tags$style( 
         str_c(zoom_reverse, #Reverse zoom for plotly graphs to avoid glitches and make hover work
               zoom_css, # Adjust zoom to fit 1 year without horizontal scrolling
-              error_position_css) #Manually adjust position of validation messages
+              error_position_css,
+              form_group_css) #Manually adjust position of validation messages
         
     ),
     
@@ -37,10 +38,10 @@ shinyUI(fluidPage(
                                maxDate = max(monthly$month)),
             actionButton(inputId = "select_all_dates", 
                          label = "All Months",
-                         style="margin-bottom: 5px; margin-top: -10px;"),
+                         style="margin-bottom: 5px;"),
             actionButton(inputId = "select_current_month", 
                          label = "Current Month",
-                         style="margin-bottom: 5px; margin-top: -10px;"),
+                         style="margin-bottom: 5px;"),
             br(),
             actionButton(inputId = "select_current_year", 
                          label = "Current Year",
@@ -51,24 +52,28 @@ shinyUI(fluidPage(
             actionButton(inputId = "select_all_buckets", 
                          label = "Show All Buckets",
                          style="margin-bottom: 5px;"),
-        dropdown(
-            inputId = "income_buckets_filter",
-            label = "Select Income Buckets",
-            prettyCheckboxGroup(inputId = "income_buckets_filter_choices",
-                                label = "Income Buckets",
-                                selected = levels(monthly %>% filter(bucket_group == "Income") %>% pull(category) %>% fct_drop()),
-                                choices = levels(monthly %>% filter(bucket_group == "Income") %>% pull(category) %>% fct_drop()))),
-        tags$div(style = "height: 5px;"),
-        dropdown(
-            inputId = "expense_buckets_filter",
-            label = "Select Expense Buckets",
-            prettyCheckboxGroup(inputId = "expense_buckets_filter_choices",
-                                label = "Expense Buckets",
-                                selected = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()),
-                                choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()))),
-        tags$div(style = "height: 15px;"),
-        
-        # Input controls for the Income/Expense report
+        pickerInput(inputId = "income_buckets_filter_choices",
+                    label = NULL,
+                    selected = levels(monthly %>% filter(bucket_group == "Income") %>% pull(category) %>% fct_drop()),
+                    choices = levels(monthly %>% filter(bucket_group == "Income") %>% pull(category) %>% fct_drop()),
+                    multiple = TRUE,
+                    width = "fit",
+                    options = list(`actions-box` = TRUE,
+                                   header = "Income Buckets",
+                                   `selected-text-format` = "static",
+                                   title = "Select Income Buckets")
+        ),
+        pickerInput(inputId = "expense_buckets_filter_choices",
+                    label = NULL,
+                    selected = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()),
+                    choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()),
+                    multiple = TRUE,
+                    width = "fit",
+                    options = list(`actions-box` = TRUE,
+                                   header = "Expense Buckets",
+                                   `selected-text-format` = "static",
+                                   title = "Select Expense Buckets")
+        ),
         p(strong("Income/Expense View"),
           style="margin-bottom: 5px;"),
         actionButton(inputId = "toggle_report_view", 
@@ -87,27 +92,34 @@ shinyUI(fluidPage(
         actionButton(inputId = "select_all_accounts", 
                      label = "Show All Accounts",
                      style="margin-bottom: 5px;"),
-        dropdown(
-          inputId = "netwealth_account_filter",
-          label = "Select Accounts",
-          prettyCheckboxGroup(inputId = "netwealth_account_filter_choices",
-                              label = "Accounts",
-                              selected = unique(assets_liabilities$name),
-                              choices = unique(assets_liabilities$name))),
+        pickerInput(inputId = "netwealth_account_filter_choices",
+                    label = NULL,
+                    selected = unique(assets_liabilities$name),
+                    choices = unique(assets_liabilities$name),
+                    multiple = TRUE,
+                    width = "fit",
+                    options = list(`actions-box` = TRUE,
+                                   header = "Accounts",
+                                   `selected-text-format` = "static",
+                                   title = "Select Accounts")
+        ),
         p(strong("Savings Rate View"),
           style="margin-bottom: 5px;"),
         actionButton(inputId = "select_config_saving_buckets", 
                      label = "Select Saving Buckets From \"config.R\"",
                      style="margin-bottom: 5px;"),
-        dropdown(
-          inputId = "saving_buckets_filter",
-          label = "Select Saving Buckets",
-          prettyCheckboxGroup(inputId = "saving_buckets_filter_choices",
-                              label = "Saving Buckets",
-                              selected = savings_buckets,
-                              choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop())))
+        pickerInput(inputId = "saving_buckets_filter_choices",
+                    label = NULL,
+                    selected = savings_buckets,
+                    choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()),
+                    multiple = TRUE,
+                    width = "fit",
+                    options = list(`actions-box` = TRUE,
+                                   header = "Saving Buckets",
+                                   `selected-text-format` = "static",
+                                   title = "Select Saving Buckets")
+                    )
         ),
-        
         # Use tabsets for the main panel to easily switch between reports
         mainPanel(width = 10, tabsetPanel(
             tabPanel("Income/Expense Report", DT::dataTableOutput("expenses_pr_month")),
@@ -134,7 +146,24 @@ shinyUI(fluidPage(
             tabPanel("Bucket Balances",
                      p(strong("Always shows the current balance in the Buckets. Not affected by filters."),
                        style="margin: 5px;"),
-                     plotlyOutput("bucket_balances", height = height_bucket_balances))
+                     plotlyOutput("bucket_balances", height = height_bucket_balances)),
+            tabPanel("Bucket Transactions",
+                     p(strong("Select a bucket to show the plot."),
+                       style="margin: 5px;"),
+                     pickerInput(inputId = "bucket_transactions_selected",
+                                 label = NULL,
+                                 selected = NULL,
+                                 choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()),
+                                 multiple = FALSE,
+                                 width = "fit",
+                                 options = list(`actions-box` = FALSE,
+                                                header = "Bucket Transactions",
+                                                title = "Select Bucket",
+                                                `none-selected-text` = "Select Bucket",
+                                                `live-search` = TRUE,
+                                                `live-search-normalize` = TRUE)
+                     ),
+                     plotlyOutput("bucket_transactions", height = height_bucket_transactions))
                      
             )
         )

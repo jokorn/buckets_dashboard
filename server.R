@@ -272,6 +272,24 @@ shinyServer(function(input, output, session) {
                    input$saving_buckets_filter_choices)
     })
     
+    # Create the Bucket Transactions plot
+    output$bucket_transactions <- renderPlotly({
+      # Again we need two dates to create the date filter
+      validate(
+        need(length(input$date_range) == 2, "Select both start and end month for the reports.")
+      )
+      
+      # And we need one bucket selected
+      validate(
+        need(input$bucket_transactions_selected != "", "")
+      )
+      
+      plot_bucket_transactions(buckets_monthly,
+                               input$date_range,
+                               input$bucket_transactions_selected)
+      
+    })
+    
     # Select the saving buckets from config.R in the drop down menu when the button is clicked
     observeEvent(input$select_config_saving_buckets, {
       updateCheckboxGroupInput(inputId="saving_buckets_filter_choices", 
