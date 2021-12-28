@@ -197,6 +197,36 @@ dates_available <- range(monthly$month)
 date_from <- max(today() %>% floor_date("year"), dates_available[1])
 date_to <- today()
 
+# Create named lists with expenses, income and accounts for the dropdown menus
+income_named_prepare <- monthly %>%
+  filter(bucket_group == "Income") %>%
+  distinct(bucket_group, category) %>% 
+  mutate(bucket_group = fct_inorder(bucket_group))
+income_named_list <- split(as.character(income_named_prepare$category),
+                           income_named_prepare$bucket_group)
+
+expenses_named_prepare <- monthly %>%
+  filter(bucket_group != "Income") %>%
+  distinct(bucket_group, category) %>% 
+  mutate(bucket_group = fct_inorder(bucket_group))
+expenses_named_list <- split(as.character(expenses_named_prepare$category), 
+                             expenses_named_prepare$bucket_group)
+
+accounts_named_prepare <- acc_balance %>% 
+  mutate(category = case_when(closed == 1 ~ "Closed",
+                              kind == "offbudget" ~ "Off Budget",
+                              TRUE ~ "On Budget")) %>% 
+  mutate(name = fct_inorder(name)) %>% 
+  mutate(category = factor(category,
+                           levels = c("On Budget",
+                                      "Off Budget",
+                                      "Closed"))) %>% 
+  select(name, category) %>% 
+  arrange(category, name)
+accounts_named_list <- split(as.character(accounts_named_prepare$name),
+                             accounts_named_prepare$category)
+
+
 # Disconnect from DB
 dbDisconnect(con)
 
