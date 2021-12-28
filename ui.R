@@ -163,12 +163,27 @@ shinyUI(fluidPage(
                                                 `live-search` = TRUE,
                                                 `live-search-normalize` = TRUE)
                      ),
-                     plotlyOutput("bucket_transactions", height = height_bucket_transactions))
-                     
-            )
+                     plotlyOutput("bucket_transactions", height = height_bucket_transactions)),
+            tabPanel("Year Over Year",
+                     p(strong("Select a bucket to show the plot."),
+                       style="margin: 5px;"),
+                     pickerInput(inputId = "year_over_year_selected",
+                                 label = NULL,
+                                 selected = NULL,
+                                 choices = c(income_named_list, expenses_named_list),
+                                 multiple = FALSE,
+                                 width = "fit",
+                                 options = list(`actions-box` = FALSE,
+                                                header = "Year Over Year",
+                                                title = "Select Bucket",
+                                                `none-selected-text` = "Select Bucket",
+                                                `live-search` = TRUE,
+                                                `live-search-normalize` = TRUE)
+                     ),
+                     plotlyOutput("year_over_year", height = height_year_over_year))
+            ))
         )
     )
-    )
-    )
+)
 
     

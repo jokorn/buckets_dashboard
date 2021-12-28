@@ -670,3 +670,36 @@ plot_bucket_transactions <- function(buckets_monthly,
     layout(separators = plotly_separators)
   
 }
+
+plot_year_over_year <- function(monthly,
+                                input_date_range,
+                                input_year_over_year_selected) {
+  
+  all_months_sorted <- seq(ymd("2020-01-01"), ymd("2020-12-31"), by = "month") %>% 
+    strftime("%b")
+  
+  year_over_year <- monthly %>% 
+    filter(category == input_year_over_year_selected) %>% 
+    filter(month >= input_date_range[1] &
+             month <= input_date_range[2]) %>% 
+    mutate(amount = ifelse(bucket_group == "Income", amount, amount*-1)) %>% 
+    mutate(year = strftime(month, "%Y")) %>% 
+    mutate(month = strftime(month, "%b") %>% factor(levels = all_months_sorted)) %>% 
+    arrange(year, month) %>% 
+    mutate(year = fct_inorder(year)) %>% 
+    tidyr::complete(year, month, fill = list(amount = NA_real_))
+  
+  plot_ly() %>% 
+    add_trace(data = year_over_year,
+              x = ~month,
+              y = ~amount,
+              color = ~year,
+              hovertemplate = glue::glue("%{{x}}: %{{y:{plotly_separators}0f}}"),
+              type = "bar") %>% 
+    layout(yaxis = list(title = "Amount"),
+           xaxis = list(title = ""),
+           title = input_year_over_year_selected) %>% 
+    config(displayModeBar = FALSE) %>% 
+    layout(separators = plotly_separators)
+
+}

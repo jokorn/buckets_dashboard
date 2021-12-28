@@ -276,7 +276,7 @@ shinyServer(function(input, output, session) {
     output$bucket_transactions <- renderPlotly({
       # Again we need two dates to create the date filter
       validate(
-        need(length(input$date_range) == 2, "Select both start and end month for the reports.")
+        need(length(input$date_range) == 2, "")
       )
       
       # And we need one bucket selected
@@ -287,6 +287,24 @@ shinyServer(function(input, output, session) {
       plot_bucket_transactions(buckets_monthly,
                                input$date_range,
                                input$bucket_transactions_selected)
+      
+    })
+    
+    # Create the Year Over Year plot
+    output$year_over_year <- renderPlotly({
+      # Again we need two dates to create the date filter
+      validate(
+        need(length(input$date_range) == 2, "")
+      )
+      
+      # And we need one bucket selected
+      validate(
+        need(input$year_over_year_selected != "", "")
+      )
+      
+      plot_year_over_year(monthly,
+                          input$date_range,
+                          input$year_over_year_selected)
       
     })
     
