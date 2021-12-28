@@ -1,10 +1,6 @@
 # Define server logic
 shinyServer(function(input, output, session) {
     
-  # Set up reactive values associated with the toggle actionbuttons
-  show_bucketgroups <- reactiveVal(FALSE)
-  show_zerototals <- reactiveVal(TRUE)
-    
   # Create the income/expense report by calling the function defined in global.R
     output$expenses_pr_month <- DT::renderDataTable({
       # We need both start and end month to create the date filter
@@ -27,8 +23,8 @@ shinyServer(function(input, output, session) {
                                                   by = "month"),
                            buckets_filter = c(input$income_buckets_filter_choices,
                                               input$expense_buckets_filter_choices),
-                           bucketgroups_view = show_bucketgroups(),
-                           show_zero_totals = show_zerototals())
+                           bucketgroups_view = input$toggle_report_view,
+                           show_zero_totals = input$toggle_zero_totals)
       })
     
     # Create the transactions table by calling the function defined in global.R
@@ -51,7 +47,7 @@ shinyServer(function(input, output, session) {
                          cells_filter = input$expenses_pr_month_cells_selected,
                          buckets_filter = c(input$income_buckets_filter_choices,
                                             input$expense_buckets_filter_choices),
-                         bucketgroups_view = show_bucketgroups(),
+                         bucketgroups_view = input$toggle_report_view,
                          # Provide the expense report as well as we need the
                          # data from this to filter transactions based on 
                          # cell selections
@@ -63,8 +59,8 @@ shinyServer(function(input, output, session) {
                                                                                       by = "month"),
                                                                buckets_filter = c(input$income_buckets_filter_choices,
                                                                                   input$expense_buckets_filter_choices),
-                                                               bucketgroups_view = show_bucketgroups(),
-                                                               show_zero_totals = show_zerototals()))
+                                                               bucketgroups_view = input$toggle_report_view,
+                                                               show_zero_totals = input$toggle_zero_totals))
     })
     
     # Select all buckets in the drop down menus when the button is clicked
@@ -84,7 +80,6 @@ shinyServer(function(input, output, session) {
     # when the Bucket Groups button is clicked and also clear any selections
     # in the table to avoid bugs
     observeEvent(input$toggle_report_view, {
-      show_bucketgroups(!show_bucketgroups())
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
     }
     )
@@ -93,7 +88,6 @@ shinyServer(function(input, output, session) {
     # when the show zero totals button is clicked and also clear any selections
     # in the table to avoid bugs
     observeEvent(input$toggle_zero_totals, {
-      show_zerototals(!show_zerototals())
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
     }
     )
