@@ -165,7 +165,7 @@ shinyUI(fluidPage(
                      ),
                      plotlyOutput("bucket_transactions", height = height_bucket_transactions)),
             tabPanel("Year Over Year",
-                     p(strong("Select a bucket to show the plot."),
+                     p(strong("Select a bucket to show the plot. Click the legend or change the date range to hide or show specific years."),
                        style="margin: 5px;"),
                      pickerInput(inputId = "year_over_year_selected",
                                  label = NULL,

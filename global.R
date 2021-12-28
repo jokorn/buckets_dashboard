@@ -69,13 +69,15 @@ buckets_ready <- buckets %>%
          group_id,
          balance,
          ranking,
-         category = name) %>%
+         category = name,
+         kicked) %>%
   collect() %>% 
   left_join(bucket_groups %>% 
               select(group_id = id,
                      bucket_group = name) %>% 
               collect(),
-            by = "group_id")
+            by = "group_id") %>% 
+  arrange(group_id)
 
 # Prepare income
 income_ready <- income %>% 
@@ -205,11 +207,10 @@ income_named_prepare <- monthly %>%
 income_named_list <- split(as.character(income_named_prepare$category),
                            income_named_prepare$bucket_group)
 
-expenses_named_prepare <- monthly %>%
-  filter(bucket_group != "Income") %>%
+expenses_named_prepare <- buckets_ready %>%
   distinct(bucket_group, category) %>% 
   mutate(bucket_group = fct_inorder(bucket_group))
-expenses_named_list <- split(as.character(expenses_named_prepare$category), 
+expenses_named_list <- split(expenses_named_prepare$category, 
                              expenses_named_prepare$bucket_group)
 
 accounts_named_prepare <- acc_balance %>% 
