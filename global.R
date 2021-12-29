@@ -77,7 +77,8 @@ buckets_ready <- buckets %>%
                      bucket_group = name) %>% 
               collect(),
             by = "group_id") %>% 
-  arrange(group_id)
+  arrange(group_id) %>% 
+  mutate(bucket_group = ifelse(is.na(bucket_group) & kicked == 1, "Kicked", bucket_group))
 
 # Prepare income
 income_ready <- income %>% 
@@ -565,6 +566,8 @@ plot_bucket_balance <- function(buckets_ready) {
     mutate(bucket_group = fct_inorder(bucket_group)) %>%
     # Remove buckets not in a bucket group
     filter(!is.na(bucket_group)) %>% 
+    # and remove buckets that were kicked
+    filter(bucket_group != "Kicked") %>% 
     # Nest so we can make a plot per bucket_group
     group_nest(bucket_group) %>%
     # Create an index for the bucket_group - needed as input when plotting
