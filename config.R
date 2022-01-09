@@ -30,8 +30,9 @@ height_expenses_sunburst <- "650px"
 height_income_piechart <- "650px"
 height_transactions_report <- "680px"
 height_expense_report <- "740px"
-height_bucket_transactions <- "630px"
-height_year_over_year <- "630px"
+height_bucket_balances <- "1600px"
+height_bucket_transactions <- "615px"
+height_year_over_year <- "615px"
 
 income_sunburst_textinfo <- "label+value+percent entry" #You can remove some of these if the charts are too crowded
 expenses_sunburst_textinfo <- "label+value+percent entry"
