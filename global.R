@@ -78,7 +78,9 @@ buckets_ready <- buckets %>%
               collect(),
             by = "group_id") %>% 
   arrange(group_id) %>% 
-  mutate(bucket_group = ifelse(is.na(bucket_group) & kicked == 1, "Kicked", bucket_group))
+  mutate(bucket_group = ifelse(is.na(bucket_group) & kicked == 1, "Kicked", bucket_group)) %>% 
+  mutate(group_id = ifelse(bucket_group == "Kicked", 9999, group_id)) %>% 
+  mutate(bucket_group = fct_reorder(bucket_group, group_id))
 
 # Prepare income
 income_ready <- income %>% 
@@ -115,8 +117,8 @@ everything <- bind_rows(income_ready,
          ranking = coalesce(ranking_new, ranking)) %>% 
   # Ensure sorting
   arrange(group_id, ranking) %>% 
-  mutate(category = factor(category) %>% fct_inorder)
-  
+  mutate(category = factor(category) %>% fct_inorder) %>% 
+  mutate(bucket_group = fct_reorder(bucket_group, group_id))
 
 # Create monthly summary
 monthly <- everything %>% 
@@ -203,14 +205,14 @@ date_to <- today()
 # Create named lists with expenses, income and accounts for the dropdown menus
 income_named_prepare <- monthly %>%
   filter(bucket_group == "Income") %>%
-  distinct(bucket_group, category) %>% 
-  mutate(bucket_group = fct_inorder(bucket_group))
+  distinct(bucket_group, category)
+
 income_named_list <- split(as.character(income_named_prepare$category),
                            income_named_prepare$bucket_group)
 
 expenses_named_prepare <- buckets_ready %>%
-  distinct(bucket_group, category) %>% 
-  mutate(bucket_group = fct_inorder(bucket_group))
+  distinct(bucket_group, category)
+
 expenses_named_list <- split(expenses_named_prepare$category, 
                              expenses_named_prepare$bucket_group)
 
@@ -225,6 +227,7 @@ accounts_named_prepare <- acc_balance %>%
                                       "Closed"))) %>% 
   select(name, category) %>% 
   arrange(category, name)
+
 accounts_named_list <- split(as.character(accounts_named_prepare$name),
                              accounts_named_prepare$category)
 
@@ -238,12 +241,12 @@ expense_income_table <- function(data_source,
                                  buckets_filter,
                                  bucketgroups_view = FALSE,
                                  show_zero_totals = TRUE) {
-  
+
   # Switch depending on whether it is buckets or bucket groups view
   if (bucketgroups_view) {
+    
     data_source_prepare <- data_source %>% 
       filter(category %in% buckets_filter) %>% 
-      mutate(bucket_group = fct_inorder(factor(bucket_group))) %>% 
       group_by(bucket_group, month) %>% 
       summarize(amount = sum(amount)) %>% 
       ungroup() %>% 
@@ -254,17 +257,20 @@ expense_income_table <- function(data_source,
       mutate(Average = mean(c_across(all_of(strftime(date_filter, format = "%Y-%b")))),
              Total = sum(c_across(all_of(strftime(date_filter, format = "%Y-%b"))))) %>% 
       ungroup()
+    
   } else {
+    
     data_source_prepare <- data_source %>% 
       filter(category %in% buckets_filter) %>% 
       mutate(month = strftime(month, format = "%Y-%b")) %>% 
       pivot_wider(names_from = month, values_from = amount) %>% 
       left_join(data_source %>% 
-                  group_by(category) %>% 
+                  group_by(bucket_group, category) %>% 
                   summarize(Average = mean(amount) %>% round(2),
                             Total = sum(amount) %>% round(2)) %>% 
                   ungroup(),
-                by = "category")
+                by = c("bucket_group", "category")) %>% 
+      arrange(bucket_group, category)
   }
   
   # Depending on actionbutton status, filter out columns with total = 0
