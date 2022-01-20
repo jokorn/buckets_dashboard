@@ -6,6 +6,7 @@ library(RSQLite)
 library(dplyr)
 library(shiny)
 library(shinyWidgets)
+library(shinyjs)
 library(DT)
 library(janitor)
 library(plotly)
@@ -133,6 +134,7 @@ monthly <- everything %>%
 # Buckets summary pr month
 buckets_monthly <- transactions %>%
   left_join(buckets, by = c("bucket_id" = "id")) %>%
+  left_join(bucket_groups %>% select(id, bucket_group = name), by = c("group_id" = "id")) %>% 
   collect() %>%
   mutate(transaction = !is.na(account_trans_id)) %>%
   mutate(positive = amount > 0) %>%
@@ -143,10 +145,12 @@ buckets_monthly <- transactions %>%
   select(posted,
          amount,
          name,
+         bucket_group,
          category) %>%
+  mutate(bucket_group = ifelse(is.na(bucket_group), "Kicked", bucket_group)) %>% 
   mutate(amount = amount / 100) %>%
   mutate(posted = floor_date(ymd(str_sub(posted, 1, 10)), "month")) %>%
-  group_by(posted, name, category) %>%
+  group_by(posted, bucket_group, name, category) %>%
   summarise(amount = sum(amount)) %>%
   mutate(name = factor(name),
          category = factor(category,
@@ -154,7 +158,7 @@ buckets_monthly <- transactions %>%
                                       "Transaction - Ingoing",
                                       "Budgeted - Outgoing",
                                       "Transaction - Outgoing")))%>%
-  tidyr::complete(name, category, posted, fill = list(amount = 0)) %>% 
+  tidyr::complete(nesting(name, bucket_group), category, posted, fill = list(amount = 0)) %>% 
   distinct()
 
 # Create account balances from end balance and transactions
@@ -215,6 +219,14 @@ expenses_named_prepare <- buckets_ready %>%
 
 expenses_named_list <- split(expenses_named_prepare$category, 
                              expenses_named_prepare$bucket_group)
+
+bucket_transactions_list_prepare <- buckets_ready %>%
+  distinct(bucket_group, category) %>% 
+  filter(str_c(category, bucket_group) %in% 
+           str_c(buckets_monthly$name, buckets_monthly$bucket_group))
+
+bucket_transactions_list <- split(bucket_transactions_list_prepare$category, 
+                                  bucket_transactions_list_prepare$bucket_group)
 
 accounts_named_prepare <- acc_balance %>% 
   mutate(category = case_when(closed == 1 ~ "Closed",
@@ -627,11 +639,25 @@ plot_bucket_balance <- function(buckets_ready) {
            
 }
 
+# Get the label for the selected value using JS
+js_year_over_year_bucket_transactions <- 'shinyjs.get_year_over_year_bucket_group = function() {
+                        var bucket_group_yoy = document.querySelector("#year_over_year_selected option:checked").parentElement.label ??= "";
+                        Shiny.setInputValue("year_over_year_bucket_group", bucket_group_yoy);
+                      };
+                      shinyjs.get_bucket_transactions_bucket_group = function() {
+                        var bucket_group_bucket_transactions = document.querySelector("#bucket_transactions_selected option:checked").parentElement.label ??= "";
+                        Shiny.setInputValue("bucket_transactions_bucket_group", bucket_group_bucket_transactions);
+                      };
+                      '
+
 plot_bucket_transactions <- function(buckets_monthly,
                                      input_date_range,
-                                     input_bucket_selected) {
+                                     input_bucket_selected,
+                                     input_bucket_group) {
+
   bucket_plot <- buckets_monthly %>% 
-    filter(name == input_bucket_selected) %>% 
+    filter(name == input_bucket_selected,
+           bucket_group == input_bucket_group) %>% 
     filter(posted >= dates_available[1] &
              posted <= dates_available[2])
   
@@ -675,7 +701,7 @@ plot_bucket_transactions <- function(buckets_monthly,
     layout(yaxis = list(title = "Change"),
            xaxis = list(title = ""),
            barmode = "stack",
-           title = input_bucket_selected) %>% 
+           title = str_c(input_bucket_group,": ", input_bucket_selected)) %>% 
     config(displayModeBar = FALSE) %>% 
     layout(separators = plotly_separators)
   
@@ -683,13 +709,15 @@ plot_bucket_transactions <- function(buckets_monthly,
 
 plot_year_over_year <- function(monthly,
                                 input_date_range,
-                                input_year_over_year_selected) {
+                                input_year_over_year_selected,
+                                input_bucket_group) {
   
   all_months_sorted <- seq(ymd("2020-01-01"), ymd("2020-12-31"), by = "month") %>% 
     strftime("%b")
   
   year_over_year <- monthly %>% 
-    filter(category == input_year_over_year_selected) %>% 
+    filter(category == input_year_over_year_selected,
+           bucket_group == input_bucket_group) %>% 
     filter(month >= input_date_range[1] &
              month <= input_date_range[2]) %>% 
     mutate(amount = ifelse(bucket_group == "Income", amount, amount*-1)) %>% 
@@ -708,7 +736,7 @@ plot_year_over_year <- function(monthly,
               type = "bar") %>% 
     layout(yaxis = list(title = "Amount"),
            xaxis = list(title = ""),
-           title = input_year_over_year_selected) %>% 
+           title = str_c(input_bucket_group, ": ", input_year_over_year_selected)) %>% 
     config(displayModeBar = FALSE) %>% 
     layout(separators = plotly_separators)
 

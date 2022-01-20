@@ -1,12 +1,16 @@
 # Define UI
 shinyUI(fluidPage(
-    
-    tags$style( 
-        str_c(zoom_reverse, #Reverse zoom for plotly graphs to avoid glitches and make hover work
-              zoom_css, # Adjust zoom to fit 1 year without horizontal scrolling
-              error_position_css,
-              form_group_css) #Manually adjust position of validation messages
-        
+  useShinyjs(),
+  extendShinyjs(text = js_year_over_year_bucket_transactions, functions = c("get_bucket_transactions_bucket_group",
+                                                         "get_year_over_year_bucket_group")),
+    tags$head(
+      tags$style( 
+          str_c(zoom_reverse, #Reverse zoom for plotly graphs to avoid glitches and make hover work
+                zoom_css, # Adjust zoom to fit 1 year without horizontal scrolling
+                error_position_css,
+                form_group_css) #Manually adjust position of validation messages
+          
+      )
     ),
     
     
@@ -146,12 +150,12 @@ shinyUI(fluidPage(
                        style="margin: 5px;"),
                      plotlyOutput("bucket_balances", height = height_bucket_balances)),
             tabPanel("Bucket Transactions",
-                     p(strong("Select a bucket to show the plot."),
+                     p(strong("Select a bucket to show the plot. Buckets without any activities cannot be selected."),
                        style="margin: 5px;"),
                      pickerInput(inputId = "bucket_transactions_selected",
                                  label = NULL,
                                  selected = NULL,
-                                 choices = expenses_named_list,
+                                 choices = bucket_transactions_list,
                                  multiple = FALSE,
                                  width = "fit",
                                  options = list(`actions-box` = FALSE,

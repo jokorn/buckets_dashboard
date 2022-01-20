@@ -278,9 +278,17 @@ shinyServer(function(input, output, session) {
         need(input$bucket_transactions_selected != "", "")
       )
       
+      # Get the bucket group from the selector using js
+      js$get_bucket_transactions_bucket_group()
+      
+      validate(
+          need(input$bucket_transactions_bucket_group != "", "")
+      )
+      
       plot_bucket_transactions(buckets_monthly,
                                input$date_range,
-                               input$bucket_transactions_selected)
+                               input$bucket_transactions_selected,
+                               input$bucket_transactions_bucket_group)
       
     })
     
@@ -296,9 +304,17 @@ shinyServer(function(input, output, session) {
         need(input$year_over_year_selected != "", "")
       )
       
+      # Get the bucket group from the selector using js
+      js$get_year_over_year_bucket_group()
+      
+      validate(
+        need(input$year_over_year_bucket_group != "", "")
+      )
+      
       plot_year_over_year(monthly,
                           input$date_range,
-                          input$year_over_year_selected)
+                          input$year_over_year_selected,
+                          input$year_over_year_bucket_group)
       
     })
     
