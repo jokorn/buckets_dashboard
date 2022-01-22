@@ -18,6 +18,7 @@ install.packages(c("tidyverse",
                    "RSQLite",
                    "shiny",
                    "shinyWidgets",
+                   "shinyjs",
                    "DT",
                    "janitor",
                    "plotly"))
