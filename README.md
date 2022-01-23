@@ -23,7 +23,22 @@ install.packages(c("tidyverse",
                    "janitor",
                    "plotly"))
 ```
-- Edit "config.R". Especially important is to specify the path to the .buckets file.
+- Some of these packages may fail to install as they are dependent on `libcurl` and `openssl`, which must be installed outside of R. Solutions differ depending on the OS, but try to install the following:
+
+  For `libcurl`:
+
+  - deb: libcurl4-openssl-dev (Debian, Ubuntu, etc)
+  - rpm: libcurl-devel (Fedora, CentOS, RHEL)
+  - csw: libcurl_dev (Solaris)
+
+  For `openssl`:
+
+  - deb: libssl-dev (Debian, Ubuntu, etc)
+  - rpm: openssl-devel (Fedora, CentOS, RHEL)
+  - csw: libssl_dev (Solaris)
+  - brew: openssl@1.1 (Mac OSX)
+
+- Edit "config.R". Especially important is to specify the path to the .buckets file, and to add "saving buckets" if you want to calculate your saving rate.
 - Run the app. Multiple possibilities:
   1. From RStudio by pressing "Run App" while in the "global.R", "ui.R" or "server.R" file.
   2. Set the working directory to the directory containing the .R files and then run: `shiny::runApp(launch.browser = TRUE)`
