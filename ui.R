@@ -105,7 +105,7 @@ shinyUI(fluidPage(
                                    `selected-text-format` = "static",
                                    title = "Select Accounts")
         ),
-        p(strong("Savings Rate View"),
+        p(strong("Savings Rate and Sankey Diagram"),
           style="margin-bottom: 5px;"),
         actionButton(inputId = "select_config_saving_buckets", 
                      label = "Select Saving Buckets From \"config.R\"",
@@ -142,7 +142,7 @@ shinyUI(fluidPage(
                        style="margin: 5px;"),
                      plotlyOutput("net_wealth")),
             tabPanel("Savings Rate",
-                     p(strong("Specify standard saving buckets in \"config.R\". Savings buckets are buckets used for transfers to off-budget saving accounts."),
+                     p(strong("Specify standard saving buckets in \"config.R\". Saving buckets are buckets used for transfers to off-budget saving accounts."),
                        style="margin: 5px;"),
                      DT::dataTableOutput("savings_rate_table")),
             tabPanel("Bucket Balances",
@@ -182,7 +182,15 @@ shinyUI(fluidPage(
                                                 `live-search` = TRUE,
                                                 `live-search-normalize` = TRUE)
                      ),
-                     plotlyOutput("year_over_year", height = height_year_over_year))
+                     plotlyOutput("year_over_year", height = height_year_over_year)),
+            tabPanel("Sankey Diagram",
+                     p(strong("Select saving buckets in the dropdown menu or specify them in \"config.R\"."),
+                       style = "margin: 0 0 0 5px;"),
+                     p(strong("Use the date and bucket filters on the left to customize the plot."),
+                       style = "margin: 0 0 0 5px;"),
+                     p(strong("Cannot plot expense buckets with a positive total activity. Cannot plot income or savings buckets with a negative total activity."),
+                       style="margin: 0 0 5px 5px;"),
+                     plotlyOutput("sankey", height = height_sankey))
             ))
         )
     )

@@ -741,3 +741,128 @@ plot_year_over_year <- function(monthly,
     layout(separators = plotly_separators)
 
 }
+
+plot_sankey <- function(monthly,
+                        input_date_range,
+                        input_saving_buckets_filter_choices,
+                        input_buckets_filter) {
+  monthly_filtered <- monthly %>% 
+    filter(month >= input_date_range[1] &
+           month <= input_date_range[2]) %>% 
+    filter(category %in% input_buckets_filter)
+  
+  # Prepare data for sankey diagram
+  
+  # Difference between total income and total expenses (including saving buckets)
+  # is either "deficit" which is added to Income streams
+  # or "Not spend" which is added to "Savings"
+  
+  income_expense_diff <- monthly_filtered %>% 
+    mutate(income = bucket_group == "Income") %>% 
+    group_by(income) %>% 
+    summarize(value = sum(amount)) %>% 
+    pull(value) %>% 
+    sum()
+  
+  # Depending on whether above is positive or negative
+  # Create "deficit" or "Not spend"
+  if (income_expense_diff >= 0) {
+    deficit_or_not_spend <- tibble(source = c("Income", "Savings"),
+                                   target = c("Savings", "Not spend"),
+                                   value = c(income_expense_diff, income_expense_diff))   
+  } else {
+    deficit_or_not_spend <- tibble(source = "Deficit",
+                                   target = "Income",
+                                   value = -income_expense_diff) 
+  }
+  
+  
+  # Income streams to income
+  first_level <- monthly_filtered %>% 
+    filter(bucket_group == "Income") %>% 
+    group_by(category, bucket_group) %>% 
+    summarize(value = sum(amount)) %>% 
+    select(source = category,
+           target = bucket_group,
+           value) %>% 
+    mutate_at(vars(source, target), as.character)
+  
+  
+  
+  # Income to savings and expenses
+  # Savings = saving buckets and "not spend"
+  second_level <- monthly_filtered %>% 
+    filter(bucket_group != "Income") %>% 
+    mutate(amount = amount * -1) %>% 
+    mutate(target = ifelse(category %in% input_saving_buckets_filter_choices, "Savings", "Expenses")) %>% 
+    group_by(target) %>% 
+    summarize(value = sum(amount)) %>% 
+    mutate(source = "Income")
+  
+  
+  # Expenses to bucket groups and savings to categories
+  third_level <- monthly_filtered %>% 
+    filter(bucket_group != "Income") %>% 
+    mutate(source = ifelse(category %in% input_saving_buckets_filter_choices, "Savings", "Expenses")) %>% 
+    mutate_at(vars(category, bucket_group), as.character) %>% 
+    mutate(amount = amount*-1) %>% 
+    mutate(target = ifelse(source == "Savings", category, bucket_group)) %>% 
+    group_by(source, target) %>% 
+    summarize(value = sum(amount))
+  
+  # Bucket groups to individual buckets
+  # fourth_level <- monthly_filtered %>% 
+  #   filter(bucket_group != "Income") %>% 
+  #   filter(!(category %in% input_saving_buckets_filter_choices)) %>% 
+  #   group_by(bucket_group, category) %>% 
+  #   summarize(value = sum(amount)*-1) %>% 
+  #   select(source = bucket_group,
+  #          target = category,
+  #          value) %>% 
+  #   mutate_at(vars(source, target), as.character)
+  
+  # Helper tibble for index value of nodes
+  id_helper <- tibble(node = c(first_level$source, 
+                               first_level$target,
+                               deficit_or_not_spend$source,
+                               deficit_or_not_spend$target,
+                               second_level$source,
+                               second_level$target,
+                               third_level$source,
+                               third_level$target) %>% #,
+                               # fourth_level$source,
+                               # fourth_level$target) %>%
+                        unique()) %>% 
+    mutate(id_source = row_number()-1,
+           id_target = id_source)
+  
+  # Collect all the levels in one tibble
+  # IMPORTANT respect the order they where added to id_helper!!!
+  all_levels <- bind_rows(first_level,
+                          deficit_or_not_spend,
+                          second_level,
+                          third_level) %>% 
+    group_by(source, target) %>% 
+    summarize(value = sum(value)) %>% 
+    ungroup()
+    
+  all_levels_ready <- all_levels %>% 
+    left_join(id_helper %>% select(id_source, source = node), by = "source") %>% 
+    left_join(id_helper %>% select(id_target, target = node), by = "target") %>% 
+    mutate(color = ifelse(source == "Deficit", "red", "lightgrey"))
+  
+  plot_ly(type = "sankey",
+          orientation = "h",
+          valueformat = glue::glue("{plotly_separators}0f"),
+          valuesuffix = if (!currency_before) user_currency else "",
+          node = list(label = id_helper$node %>% as.character(),
+                      hovertemplate = "%{label}"),
+          link = list(source = all_levels_ready$id_source,
+                      target = all_levels_ready$id_target,
+                      value = all_levels_ready$value,
+                      color = all_levels_ready$color,
+                      hovertemplate = "%{source.label} → %{target.label}")) %>% 
+    config(displayModeBar = FALSE) %>% 
+    layout(separators = plotly_separators)
+    
+}

@@ -318,6 +318,27 @@ shinyServer(function(input, output, session) {
       
     })
     
+    # Create the Sankey plot
+    output$sankey <- renderPlotly({
+      # Again we need two dates to create the date filter
+      validate(
+        need(length(input$date_range) == 2, "")
+      )
+      
+      # We need at least one income or expense bucket
+      validate(
+        need((length(input$income_buckets_filter_choices) >= 1 &
+               length(input$expense_buckets_filter_choices) >= 1), "Select at least one income and one expense bucket.")
+      )
+      
+      plot_sankey(monthly,
+                  input$date_range,
+                  input$saving_buckets_filter_choices,
+                  c(input$income_buckets_filter_choices,
+                    input$expense_buckets_filter_choices))
+      
+    })
+    
     # Select the saving buckets from config.R in the drop down menu when the button is clicked
     observeEvent(input$select_config_saving_buckets, {
       updateCheckboxGroupInput(inputId="saving_buckets_filter_choices", 
