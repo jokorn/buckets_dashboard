@@ -79,7 +79,8 @@ buckets_ready <- buckets %>%
               collect(),
             by = "group_id") %>% 
   arrange(group_id) %>% 
-  mutate(bucket_group = ifelse(is.na(bucket_group) & kicked == 1, "Kicked", bucket_group)) %>% 
+  mutate(bucket_group = ifelse(kicked == 1, "Kicked", bucket_group)) %>% 
+  mutate(category = ifelse(kicked == 1, str_c(category, " (kicked)"), category)) %>% 
   mutate(group_id = ifelse(bucket_group == "Kicked", 9999, group_id)) %>% 
   mutate(bucket_group = fct_reorder(bucket_group, group_id))
 
@@ -90,7 +91,10 @@ income_ready <- income %>%
   mutate(bucket_group = "Income",
          group_id = -99,
          ranking = memo) %>% 
-  select(bucket_group,
+  left_join(acc_balance %>% select(account = name, id),
+            by = c("account_id" = "id")) %>% 
+  select(account,
+         bucket_group,
          category = memo,
          posted,
          amount,
@@ -101,7 +105,11 @@ income_ready <- income %>%
 expenses_ready <- transactions %>% 
   filter(!is.na(account_trans_id)) %>% 
   collect() %>%
-  select(id, posted, bucket_id, amount, memo) %>% 
+  left_join(acc_trans %>% select(id, account_id),
+            by = c("account_trans_id" = "id")) %>% 
+  left_join(acc_balance %>% select(account = name, id),
+            by = c("account_id" = "id")) %>% 
+  select(account, id, posted, bucket_id, amount, memo) %>% 
   left_join(buckets_ready,
             by = "bucket_id")
 
@@ -137,6 +145,8 @@ buckets_monthly <- transactions %>%
   left_join(bucket_groups %>% select(id, bucket_group = name), by = c("group_id" = "id")) %>% 
   collect() %>%
   mutate(transaction = !is.na(account_trans_id)) %>%
+  mutate(name = ifelse(kicked == 1, str_c(name, " (kicked)"), name)) %>% 
+  mutate(bucket_group = ifelse(kicked == 1, "Kicked", bucket_group)) %>% 
   mutate(positive = amount > 0) %>%
   mutate(category = case_when(transaction & positive ~ "Transaction - Ingoing",
                               transaction & !positive ~ "Transaction - Outgoing",
@@ -221,9 +231,7 @@ expenses_named_list <- split(expenses_named_prepare$category,
                              expenses_named_prepare$bucket_group)
 
 bucket_transactions_list_prepare <- buckets_ready %>%
-  distinct(bucket_group, category) %>% 
-  filter(str_c(category, bucket_group) %in% 
-           str_c(buckets_monthly$name, buckets_monthly$bucket_group))
+  distinct(bucket_group, category)
 
 bucket_transactions_list <- split(bucket_transactions_list_prepare$category, 
                                   bucket_transactions_list_prepare$bucket_group)
@@ -660,6 +668,13 @@ plot_bucket_transactions <- function(buckets_monthly,
            bucket_group == input_bucket_group) %>% 
     filter(posted >= dates_available[1] &
              posted <= dates_available[2])
+  
+  if (nrow(bucket_plot) == 0) {
+    return(plot_ly() %>% 
+             layout(xaxis = list(visible = FALSE),
+                    yaxis = list(visible = FALSE),
+                    title = "No data available for this bucket"))
+  }
   
   bucket_balance <- bucket_plot %>% 
     group_by(posted) %>% 
