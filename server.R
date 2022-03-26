@@ -339,6 +339,26 @@ shinyServer(function(input, output, session) {
       
     })
     
+    # Create the Forecast plot
+    output$forecast <- renderPlotly({
+      # Again we need two dates to create the date filter
+      validate(
+        need(length(input$date_range) == 2, "Select both start and end month for the reports.")
+      )
+      
+      # And we need at least one account
+      validate(
+        need(length(input$netwealth_account_filter_choices) >= 1, "Select at least one account to forecast.")
+      )
+      
+      plot_forecast(all_transactions,
+                    input$date_range,
+                    input$netwealth_account_filter_choices,
+                    c(input$income_buckets_filter_choices,
+                      input$expense_buckets_filter_choices))
+      
+    })
+    
     # Select the saving buckets from config.R in the drop down menu when the button is clicked
     observeEvent(input$select_config_saving_buckets, {
       updateCheckboxGroupInput(inputId="saving_buckets_filter_choices", 

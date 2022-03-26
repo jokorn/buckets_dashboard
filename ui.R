@@ -190,7 +190,13 @@ shinyUI(fluidPage(
                        style = "margin: 0 0 0 5px;"),
                      p(strong("Cannot plot expense buckets with a positive total activity. Cannot plot income or savings buckets with a negative total activity."),
                        style="margin: 0 0 5px 5px;"),
-                     plotlyOutput("sankey", height = height_sankey))
+                     plotlyOutput("sankey", height = height_sankey)),
+            tabPanel("Forecast",
+                     p(strong("Forecasting by sampling historical data (monthly). Inspired by YNAB Toolkit."),
+                       style = "margin: 0 0 0 5px;"),
+                     p(strong("Use the date, account and bucket filters on the left to customize the data used for forecasting."),
+                       style = "margin: 0 0 0 5px;"),
+                     plotlyOutput("forecast", height = height_sankey))
             ))
         )
     )

@@ -209,6 +209,22 @@ assets_liabilities <- acc_trans %>%
   # if the balance is positive in some months and negative in others
   mutate(account_category = if_else(balance < 0, "Liabilities", "Assets"))
 
+
+# Create data to use with forecasting - includes ALL transactions onbudget and offbudget
+all_transactions <- acc_trans %>%
+  left_join(bucket_trans %>% select(bucket_id, account_trans_id),
+            by = c("id" = "account_trans_id")) %>%
+  left_join(buckets_ready, by = "bucket_id") %>%
+  mutate(category = ifelse(general_cat == "income", memo, category)) %>%
+  mutate(bucket_group = ifelse(general_cat == "income", "Income", as.character(bucket_group))) %>%
+  mutate(category = ifelse(is.na(category), "Off-budget", category)) %>%
+  mutate(bucket_group = ifelse(category == "Off-budget", "Off-budget", bucket_group)) %>%
+  left_join(acc_balance %>% select(id, account = name),
+            by = c("account_id" = "id")) %>% 
+  select(posted, account, category, bucket_group, memo, amount) %>% 
+  mutate(posted = ymd(str_sub(posted, 1, 10))) %>% 
+  mutate(month = floor_date(posted, "month"))
+
 # Create date variable for use in UI/server 
 dates_available <- range(monthly$month) 
 
@@ -880,4 +896,97 @@ plot_sankey <- function(monthly,
     config(displayModeBar = FALSE) %>% 
     layout(separators = plotly_separators)
     
+}
+
+
+plot_forecast <- function(all_transactions,
+                          input_date_range,
+                          input_accounts,
+                          input_buckets) {
+  
+  netflow_pr_month <- all_transactions %>% 
+    mutate(month = floor_date(posted, "month")) %>% 
+    # # Filter based on user input
+    filter(month >= input_date_range[1],
+           month <= input_date_range[2]) %>%
+    filter(account %in% input_accounts) %>%
+    filter(category %in% input_buckets) %>%
+    # Calculate net flow pr month
+    group_by(month) %>% 
+    summarize(netflow = sum(amount)/100)
+  
+  # Start netwealth with and without account filters
+  netwealth_now_total <- assets_liabilities %>% 
+    filter(month == ceiling_date(today(), "month") - 1) %>% 
+    pull(balance) %>% 
+    sum()
+  
+  netwealth_now_filtered <- assets_liabilities %>% 
+    filter(name %in% input_accounts) %>% 
+    filter(month == ceiling_date(today(), "month") - 1) %>% 
+    pull(balance) %>% 
+    sum()
+  
+  # Forecast 10 years
+  n_sims <- 100
+  n_years <- 10
+  n_months <- n_years*12
+  
+  # Sample from netflow with replacement
+  forecast <- tibble(sim = 1:n_sims) %>% 
+    mutate(data = list(tibble(month = seq(today() %m+% months(1),
+                                          today() %m+% months(n_months), "month") %>%
+                                floor_date("month")))) %>% 
+    mutate(data = map(data, ~ .x %>% mutate(netflow = sample(netflow_pr_month$netflow,
+                                                             n_months,
+                                                             replace = TRUE)) %>% 
+                        mutate(netwealth = accumulate(netflow, `+`)))) %>% 
+    mutate(last_netwealth = map_dbl(data, ~ tail(.x$netwealth, 1))) %>% 
+    # Remove top and bottom 5%
+    arrange(last_netwealth) %>% 
+    slice((floor(0.05*n_sims)+1):floor(0.95*n_sims))
+  
+  forecast_mean <- forecast %>% 
+    unnest(data) %>% 
+    group_by(month) %>% 
+    summarise(netflow = mean(netflow)) %>% 
+    mutate(netwealth = accumulate(netflow, `+`))
+  
+  netwealth_change <- tail(forecast_mean$netwealth, 1)
+  
+  forecast_title <- str_c("Forecasting ", n_years, " years using ", n_sims, " simulations. Discarding top 5% and bottom 5%\n",
+                          "Mean change in net wealth = ", format_currency(netwealth_change), "\n",
+                          "Total net wealth now = ", format_currency(netwealth_now_total), " ",
+                          "Total net wealth in ", n_years, " years = ", format_currency(netwealth_now_total + netwealth_change), "\n",
+                          "Filtered net wealth now = ", format_currency(netwealth_now_filtered), " ",
+                          "Filtered net wealth in ", n_years, " years = ", format_currency(netwealth_now_filtered + netwealth_change)
+  )
+  
+  fig <- plot_ly(type = "scatter", mode = "lines")
+  
+  for (i in 1:nrow(forecast)) {
+    data_to_plot <- forecast$data[[i]]
+    fig <- fig %>% 
+      add_trace(NULL,
+                y = data_to_plot$netwealth, x = data_to_plot$month,
+                line = list(color = 'rgb(211, 211, 211)', width = 0.5),
+                showlegend = FALSE)
+  }
+  
+  fig <- fig %>% 
+    add_trace(NULL,
+              y = forecast_mean$netwealth, x = forecast_mean$month,
+              line = list(color = 'rgb(0, 0 , 0)', width = 3),
+              showlegend = FALSE) %>% 
+    layout(yaxis = list(title = ""),
+           xaxis = list(title = ""),
+           title = "Forecast") %>% 
+    config(displayModeBar = FALSE) %>% 
+    layout(separators = plotly_separators,
+           title = forecast_title,
+           annotations = list(x = tail(forecast_mean$month, 1), y = netwealth_change,
+                              text = format_currency(netwealth_change),
+                              yshift = 10,
+                              showarrow = F,
+                              font = list(size = 14)))
 }
