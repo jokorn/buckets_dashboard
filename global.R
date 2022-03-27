@@ -57,10 +57,10 @@ form_group_css <- ".form-group {margin-bottom: 5px;}"
 
 # Connect to database and the relevant tables
 con <- dbConnect(SQLite(), path_to_buckets)
-transactions <- tbl(con, "bucket_transaction")
-buckets <- tbl(con, "bucket")
-bucket_groups <- tbl(con, "bucket_group")
-income <- tbl(con, "account_transaction")
+transactions <- tbl(con, "bucket_transaction") %>% collect()
+buckets <- tbl(con, "bucket") %>% collect()
+bucket_groups <- tbl(con, "bucket_group") %>% collect()
+income <- tbl(con, "account_transaction") %>% collect()
 acc_balance <- tbl(con, "account") %>% collect()
 acc_trans <- tbl(con, "account_transaction") %>% collect()
 
@@ -72,11 +72,9 @@ buckets_ready <- buckets %>%
          ranking,
          category = name,
          kicked) %>%
-  collect() %>% 
   left_join(bucket_groups %>% 
               select(group_id = id,
-                     bucket_group = name) %>% 
-              collect(),
+                     bucket_group = name),
             by = "group_id") %>% 
   arrange(group_id) %>% 
   mutate(bucket_group = ifelse(kicked == 1, "Kicked", bucket_group)) %>% 
@@ -86,7 +84,6 @@ buckets_ready <- buckets %>%
 
 # Prepare income
 income_ready <- income %>% 
-  collect() %>% 
   filter(general_cat == "income") %>% 
   mutate(bucket_group = "Income",
          group_id = -99,
@@ -104,7 +101,6 @@ income_ready <- income %>%
 # Prepare expenses
 expenses_ready <- transactions %>% 
   filter(!is.na(account_trans_id)) %>% 
-  collect() %>%
   left_join(acc_trans %>% select(id, account_id),
             by = c("account_trans_id" = "id")) %>% 
   left_join(acc_balance %>% select(account = name, id),
@@ -143,7 +139,6 @@ monthly <- everything %>%
 buckets_monthly <- transactions %>%
   left_join(buckets, by = c("bucket_id" = "id")) %>%
   left_join(bucket_groups %>% select(id, bucket_group = name), by = c("group_id" = "id")) %>% 
-  collect() %>%
   mutate(transaction = !is.na(account_trans_id)) %>%
   mutate(name = ifelse(kicked == 1, str_c(name, " (kicked)"), name)) %>% 
   mutate(bucket_group = ifelse(kicked == 1, "Kicked", bucket_group)) %>% 
@@ -212,7 +207,7 @@ assets_liabilities <- acc_trans %>%
 
 # Create data to use with forecasting - includes ALL transactions onbudget and offbudget
 all_transactions <- acc_trans %>%
-  left_join(bucket_trans %>% select(bucket_id, account_trans_id),
+  left_join(transactions %>% select(bucket_id, account_trans_id),
             by = c("id" = "account_trans_id")) %>%
   left_join(buckets_ready, by = "bucket_id") %>%
   mutate(category = ifelse(general_cat == "income", memo, category)) %>%
