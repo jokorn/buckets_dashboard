@@ -78,6 +78,9 @@ shinyUI(fluidPage(
                                    `selected-text-format` = "static",
                                    title = "Select Expense Buckets")
         ),
+        actionButton(inputId = "deselect_kicked", 
+                     label = "Deselect Kicked Expenses",
+                     style="margin-bottom: 5px;"),
         p(strong("Income/Expense View"),
           style="margin-bottom: 5px;"),
         materialSwitch("toggle_report_view",

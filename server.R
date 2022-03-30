@@ -76,6 +76,14 @@ shinyServer(function(input, output, session) {
       }
     )
     
+    # Deselect all kicked buckets in the expenses drop down menu when clicked
+    observeEvent(input$deselect_kicked, {
+      selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
+      updateCheckboxGroupInput(inputId="expense_buckets_filter_choices", 
+                               choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()),
+                               selected = expenses_named_prepare %>% filter(bucket_group != "Kicked") %>% pull(category))
+    })
+    
     # Toggle the reactive value (used as input when generating the income/expense report)
     # when the Bucket Groups button is clicked and also clear any selections
     # in the table to avoid bugs
