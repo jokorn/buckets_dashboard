@@ -232,20 +232,23 @@ income_named_prepare <- monthly %>%
   filter(bucket_group == "Income") %>%
   distinct(bucket_group, category)
 
-income_named_list <- split(as.character(income_named_prepare$category),
-                           income_named_prepare$bucket_group)
+income_named_list <- lapply(split(as.character(income_named_prepare$category),
+                                  income_named_prepare$bucket_group),
+                            as.list)
 
 expenses_named_prepare <- buckets_ready %>%
   distinct(bucket_group, category)
 
-expenses_named_list <- split(expenses_named_prepare$category, 
-                             expenses_named_prepare$bucket_group)
+expenses_named_list <- lapply(split(expenses_named_prepare$category, 
+                                    expenses_named_prepare$bucket_group),
+                              as.list)
 
 bucket_transactions_list_prepare <- buckets_ready %>%
   distinct(bucket_group, category)
 
-bucket_transactions_list <- split(bucket_transactions_list_prepare$category, 
-                                  bucket_transactions_list_prepare$bucket_group)
+bucket_transactions_list <- lapply(split(bucket_transactions_list_prepare$category,
+                                         bucket_transactions_list_prepare$bucket_group),
+                                   as.list)
 
 accounts_named_prepare <- acc_balance %>% 
   mutate(category = case_when(closed == 1 ~ "Closed",
@@ -259,8 +262,9 @@ accounts_named_prepare <- acc_balance %>%
   select(name, category) %>% 
   arrange(category, name)
 
-accounts_named_list <- split(as.character(accounts_named_prepare$name),
-                             accounts_named_prepare$category)
+accounts_named_list <- lapply(split(as.character(accounts_named_prepare$name),
+                                    accounts_named_prepare$category),
+                              as.list)
 
 
 # Disconnect from DB
