@@ -328,8 +328,10 @@ expense_income_table <- function(data_source,
                                                 scrollX = TRUE,
                                                 scrollCollapse = TRUE,
                                                 columnDefs = list(list(visible=FALSE, targets=c(0))),
-                                                fixedHeader = TRUE),
+                                                fixedHeader = TRUE,
+                                                fixedColumns = list(leftColumns = 1)),
                                  rownames = FALSE,
+                                 extensions = "FixedColumns",
                                  selection = list(target = "cell"))
   } else {
     datatable_prepare <- datatable(data_source_ready,
@@ -340,9 +342,10 @@ expense_income_table <- function(data_source,
                                                 scrollCollapse = TRUE,
                                                 rowGroup = list(dataSrc = 0),
                                                 columnDefs = list(list(visible=FALSE, targets=c(0))),
-                                                fixedHeader = TRUE),
+                                                fixedHeader = TRUE,
+                                                fixedColumns = list(leftColumns = 1)),
                                  rownames = FALSE,
-                                 extensions = 'RowGroup',
+                                 extensions = c("RowGroup","FixedColumns"),
                                  selection = list(target = "cell"))
   }
   
