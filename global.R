@@ -487,7 +487,9 @@ plot_net_wealth <- function(assets_liabilities,
               marker = list(color = "black", size = 10),
               line = list(color = "black")) %>%
     layout(yaxis = list(title = ""),
-           xaxis = list(title = ""),
+           xaxis = list(title = "",
+                        dtick = "M1",
+                        tickformat="%Y-%b"),
            legend = list(x = 0, y = 1.15),
            barmode = "group",
            title = netwealth_title) %>% 
