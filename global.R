@@ -600,12 +600,19 @@ savings_rate <- function(monthly,
 }
 
 
-plot_bucket_balance <- function(buckets_ready) {
+plot_bucket_balance <- function(buckets_ready,
+                                bucket_balances_labels) {
   
   # Make a plot per bucket group
   bucket_plots <- buckets_ready %>%
     # Balance correction
     mutate(balance = balance / 100) %>% 
+    # Create labels
+    rowwise() %>% 
+    mutate(value_labels = ifelse(bucket_balances_labels == TRUE,
+                                 ifelse(balance == 0, "", format_currency(balance)),
+                                 "")) %>% 
+    ungroup() %>% 
     # Enforce order of buckets similar to the one in Buckets app
     arrange(group_id, ranking) %>%
     mutate(category = fct_inorder(category) %>% fct_rev()) %>%
@@ -634,6 +641,9 @@ plot_bucket_balance <- function(buckets_ready) {
                         # Create the plotly bar chart
                         plot_ly(x = ~balance,
                                 y = ~category,
+                                text = ~value_labels,
+                                textposition = "outside",
+                                cliponaxis = FALSE,
                                 color = bucket_group,
                                 type = "bar",
                                 hovertemplate = glue::glue("%{{y}}: %{{x:{plotly_separators}0f}}")) %>% 
@@ -650,7 +660,13 @@ plot_bucket_balance <- function(buckets_ready) {
                           showarrow = F) %>% 
                         # Make sure we show all the buckets with dtick
                         layout(yaxis = list(type = "category", dtick = 1),
-                               separators = plotly_separators)}))
+                               separators = plotly_separators,
+                               margin = list(r = 40))}))# %>% 
+                        # add_text(x = ~balance,
+                        #          y = ~category,
+                        #          text = ~value_labels,
+                        #          color = bucket_group,
+                        #          textposition = "right")}))
   
   # Now put all the separate bucket group plots together using subplot
   bucket_plots %>% 
@@ -663,7 +679,13 @@ plot_bucket_balance <- function(buckets_ready) {
             titleX = FALSE,
             heights = bucket_plots$height) %>% 
     layout(showlegend = FALSE) %>% 
-    config(displayModeBar = FALSE)
+    config(displayModeBar = TRUE,
+           displaylogo = FALSE,
+           modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                      "autoScale", "resetScale", "hoverClosestCartesian",
+                                      "hoverCompareCartesian", "lasso2d"),
+           toImageButtonOptions = list(height= NULL,
+                                       width= NULL))
            
 }
 

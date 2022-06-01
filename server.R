@@ -383,7 +383,8 @@ shinyServer(function(input, output, session) {
     
     # Plot bucket balances
     output$bucket_balances <- renderPlotly( {
-      plot_bucket_balance(buckets_ready)
+      plot_bucket_balance(buckets_ready,
+                          input$bucket_balances_labels)
     }) 
     
 })
