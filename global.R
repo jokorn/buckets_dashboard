@@ -493,7 +493,13 @@ plot_net_wealth <- function(assets_liabilities,
            legend = list(x = 0, y = 1.15),
            barmode = "group",
            title = netwealth_title) %>% 
-    config(displayModeBar = FALSE) %>% 
+    config(displayModeBar = TRUE,
+           displaylogo = FALSE,
+           modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                      "autoScale", "resetScale", "hoverClosestCartesian",
+                                      "hoverCompareCartesian", "lasso2d"),
+           toImageButtonOptions = list(height= NULL,
+                                       width= NULL)) %>% 
     layout(separators = plotly_separators)
   
 }
@@ -759,7 +765,13 @@ plot_bucket_transactions <- function(buckets_monthly,
            xaxis = list(title = ""),
            barmode = "stack",
            title = str_c(input_bucket_group,": ", input_bucket_selected)) %>% 
-    config(displayModeBar = FALSE) %>% 
+    config(displayModeBar = TRUE,
+           displaylogo = FALSE,
+           modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                      "autoScale", "resetScale", "hoverClosestCartesian",
+                                      "hoverCompareCartesian", "lasso2d"),
+           toImageButtonOptions = list(height= NULL,
+                                       width= NULL)) %>% 
     layout(separators = plotly_separators)
   
 }
@@ -794,7 +806,13 @@ plot_year_over_year <- function(monthly,
     layout(yaxis = list(title = "Amount"),
            xaxis = list(title = ""),
            title = str_c(input_bucket_group, ": ", input_year_over_year_selected)) %>% 
-    config(displayModeBar = FALSE) %>% 
+    config(displayModeBar = TRUE,
+           displaylogo = FALSE,
+           modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                      "autoScale", "resetScale", "hoverClosestCartesian",
+                                      "hoverCompareCartesian", "lasso2d"),
+           toImageButtonOptions = list(height= NULL,
+                                       width= NULL)) %>% 
     layout(separators = plotly_separators)
 
 }
@@ -919,7 +937,13 @@ plot_sankey <- function(monthly,
                       value = all_levels_ready$value,
                       color = all_levels_ready$color,
                       hovertemplate = "%{source.label} → %{target.label}")) %>% 
-    config(displayModeBar = FALSE) %>% 
+    config(displayModeBar = TRUE,
+           displaylogo = FALSE,
+           modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                      "autoScale", "resetScale", "hoverClosestCartesian",
+                                      "hoverCompareCartesian", "lasso2d"),
+           toImageButtonOptions = list(height= NULL,
+                                       width= NULL)) %>% 
     layout(separators = plotly_separators)
     
 }
@@ -1007,7 +1031,13 @@ plot_forecast <- function(all_transactions,
     layout(yaxis = list(title = ""),
            xaxis = list(title = ""),
            title = "Forecast") %>% 
-    config(displayModeBar = FALSE) %>% 
+    config(displayModeBar = TRUE,
+           displaylogo = FALSE,
+           modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                      "autoScale", "resetScale", "hoverClosestCartesian",
+                                      "hoverCompareCartesian", "lasso2d"),
+           toImageButtonOptions = list(height= NULL,
+                                       width= NULL)) %>% 
     layout(separators = plotly_separators,
            title = forecast_title,
            annotations = list(x = tail(forecast_mean$month, 1), y = netwealth_change,

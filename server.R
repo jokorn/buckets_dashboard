@@ -194,7 +194,13 @@ shinyServer(function(input, output, session) {
               textinfo = income_sunburst_textinfo,
               hoverinfo = income_sunburst_hoverinfo,
               type = "sunburst") %>% 
-        config(displayModeBar = FALSE) %>% 
+        config(displayModeBar = TRUE,
+               displaylogo = FALSE,
+               modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                          "autoScale", "resetScale", "hoverClosestCartesian",
+                                          "hoverCompareCartesian", "lasso2d"),
+               toImageButtonOptions = list(height= NULL,
+                                           width= NULL)) %>% 
         layout(separators = plotly_separators)
     })
       
@@ -243,7 +249,13 @@ shinyServer(function(input, output, session) {
               maxdepth = 2,
               branchvalues = "total",
               type = "sunburst") %>% 
-        config(displayModeBar = FALSE) %>% 
+        config(displayModeBar = TRUE,
+               displaylogo = FALSE,
+               modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                          "autoScale", "resetScale", "hoverClosestCartesian",
+                                          "hoverCompareCartesian", "lasso2d"),
+               toImageButtonOptions = list(height= NULL,
+                                           width= NULL)) %>% 
         layout(separators = plotly_separators)
     })
     
