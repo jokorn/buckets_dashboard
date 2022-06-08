@@ -242,7 +242,23 @@ expenses_named_prepare <- buckets_ready %>%
 expenses_named_list <- lapply(split(expenses_named_prepare$category, 
                                     expenses_named_prepare$bucket_group),
                               as.list)
+# Add "Off-budget" manually to fix the forecasting report which has this category
+# for transactions in off-budget and closed accounts
 expenses_named_list$`Off-budget` <- "Off-budget"
+
+# Check for duplicate bucket names so we can warn the user using a modal in server
+all_buckets <- c(as.character(expenses_named_prepare$category),
+                 as.character(income_named_prepare$category))
+
+if (sum(duplicated(all_buckets)) > 0){
+  show_modal <- TRUE
+  modal_text <- str_c("Duplicate bucket names detected!<br>",
+                      "Please rename the following buckets in the Buckets app to avoid duplicate names:<br>",
+                      str_c(all_buckets[duplicated(all_buckets)] %>% unique(), collapse = " and "),"<br>",
+                      "Note that the duplicate names may arise from memo fields for income that are the same as an expense bucket.")
+} else {
+  show_modal <- FALSE
+}
 
 bucket_transactions_list_prepare <- buckets_ready %>%
   distinct(bucket_group, category)
@@ -295,7 +311,6 @@ expense_income_table <- function(data_source,
       ungroup()
     
   } else {
-    
     data_source_prepare <- data_source %>% 
       filter(category %in% buckets_filter) %>% 
       mutate(month = strftime(month, format = "%Y-%b")) %>% 

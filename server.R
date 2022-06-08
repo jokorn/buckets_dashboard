@@ -1,5 +1,15 @@
 # Define server logic
 shinyServer(function(input, output, session) {
+  
+  # Check if any bucket names are duplicated as this may cause issues
+  # if duplicates exist create a model to warn and encourage renaming of buckets
+  if (show_modal == TRUE) {
+    showModal(modalDialog(
+      title = "WARNING!",
+      HTML(modal_text)
+    ))
+  }
+  
     
   # Create the income/expense report by calling the function defined in global.R
     output$expenses_pr_month <- DT::renderDataTable({
@@ -67,11 +77,11 @@ shinyServer(function(input, output, session) {
     observeEvent(input$select_all_buckets, {
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
       updateCheckboxGroupInput(inputId="income_buckets_filter_choices", 
-                               choices = levels(monthly %>% filter(bucket_group == "Income") %>% pull(category) %>% fct_drop()),
-                               selected = levels(monthly %>% filter(bucket_group == "Income") %>% pull(category) %>% fct_drop()))
+                               selected = unlist(income_named_list, use.names = FALSE),
+                               choices = income_named_list)
       updateCheckboxGroupInput(inputId="expense_buckets_filter_choices", 
-                               choices = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()),
-                               selected = levels(monthly %>% filter(bucket_group != "Income") %>% pull(category) %>% fct_drop()))
+                               selected = unlist(expenses_named_list, use.names = FALSE),
+                               choices = expenses_named_list)
       
       }
     )
