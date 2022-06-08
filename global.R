@@ -242,6 +242,7 @@ expenses_named_prepare <- buckets_ready %>%
 expenses_named_list <- lapply(split(expenses_named_prepare$category, 
                                     expenses_named_prepare$bucket_group),
                               as.list)
+expenses_named_list$`Off-budget` <- "Off-budget"
 
 bucket_transactions_list_prepare <- buckets_ready %>%
   distinct(bucket_group, category)
