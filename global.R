@@ -428,14 +428,42 @@ transactions_table <- function(data_source,
            "Amount" = amount,
            "Memo" = memo)
   
+  # Create the datatable container to modify the footer
+  sketch <- htmltools::tags$table(
+    tableHeader(c("", colnames(data_source_ready))),
+    tableFooter(rep("", ncol(data_source_ready)+1)))
+  
   # Create the datatable. Fixed header not possible due to bug with multiple 
   # datatables in tabsets, so use scrollY instead
   datatable(data_source_ready,
+            container = sketch,
             options = list(dom = "fti", 
                            order = list(list(1, 'desc')),
                            paging = FALSE,
                            scrollY = height_transactions_report,
-                           scrollCollapse = TRUE)) %>% 
+                           scrollCollapse = TRUE,
+                           footerCallback = JS(paste0("function (row, data, start, end, display) {",
+                                                      "var api = this.api();",
+                                                      
+                                                      "var total = api",
+                                                      ".column(4, { page: 'current' })",
+                                                      ".data()",
+                                                      ".reduce(function (a, b) {",
+                                                        "return a + b;",
+                                                      "}, 0);",
+                                               
+                                                      "Number.prototype.format = function(n, x, s, c) {",
+                                                        "var re = '\\\\d(?=(\\\\d{' + (x || 3) + '})+' + (n > 0 ? '\\\\D' : '$') + ')',",
+                                                        "num = this.toFixed(Math.max(0, ~~n));",
+                                                        "return (c ? num.replace('.', c) : num).replace(new RegExp(re, 'g'), '$&' + (s || ','));",
+                                                      "};",
+                                                      
+                                                      "$(api.column(5).footer()).html('Total: ' +",
+                                                                                      if (currency_before) paste0("'", user_currency, "'", "+") else '',
+                                                                                      "total.format(2, 3, '.', ',') +",
+                                                                                      if (!currency_before) paste0("'", user_currency, "'") else '',
+                                                                                      ");", 
+                                                      "}")))) %>% 
     formatStyle("Amount",
                 color = DT::styleInterval(cuts = c(-0.001, 0.001),
                                           values = c("red", "gray", "green"))) %>%

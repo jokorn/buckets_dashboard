@@ -2,7 +2,7 @@
 shinyServer(function(input, output, session) {
   
   # Check if any bucket names are duplicated as this may cause issues
-  # if duplicates exist create a model to warn and encourage renaming of buckets
+  # if duplicates exist create a modal to warn and encourage renaming of buckets
   if (show_modal == TRUE) {
     showModal(modalDialog(
       title = "WARNING!",
