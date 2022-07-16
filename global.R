@@ -105,6 +105,11 @@ expenses_ready <- transactions %>%
             by = c("account_trans_id" = "id")) %>% 
   left_join(acc_balance %>% select(account = name, id),
             by = c("account_id" = "id")) %>% 
+  # Use memo field from transactions where possible and not from bucket transaction
+  left_join(acc_trans %>% select(account_trans_id = id,
+                                 memo.new = memo),
+            by = "account_trans_id") %>% 
+  mutate(memo = coalesce(memo.new, memo)) %>% 
   select(account, id, posted, bucket_id, amount, memo) %>% 
   left_join(buckets_ready,
             by = "bucket_id")
