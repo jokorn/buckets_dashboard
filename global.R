@@ -472,6 +472,7 @@ transactions_table <- function(data_source,
                                                                                       ");", 
                                                       "$(api.column(1).footer()).attr('style', function(i,s) { return (s || '') + 'font-weight: bold !important; text-align: right !important;' });",
                                                       "$('div.dataTables_info').attr('style', function(i,s) { return (s || '') + 'font-weight: normal !important; text-align: left !important; padding: 0 !important;' });",
+                                                      "$('tfoot tr th:first-child').children(':first').detach();",
                                                       "$('div.dataTables_info').appendTo($('tfoot tr th:first-child'));",
                                                       "}")))) %>% 
     formatStyle("Amount",
