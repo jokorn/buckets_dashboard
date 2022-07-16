@@ -436,7 +436,9 @@ transactions_table <- function(data_source,
   # Create the datatable container to modify the footer
   sketch <- htmltools::tags$table(
     tableHeader(c("", colnames(data_source_ready))),
-    tableFooter(rep("", ncol(data_source_ready)+1)))
+    tableFooter(rep("", 2)))
+  
+  #browser()
   
   # Create the datatable. Fixed header not possible due to bug with multiple 
   # datatables in tabsets, so use scrollY instead
@@ -463,11 +465,14 @@ transactions_table <- function(data_source,
                                                         "return (c ? num.replace('.', c) : num).replace(new RegExp(re, 'g'), '$&' + (s || ','));",
                                                       "};",
                                                       
-                                                      "$(api.column(5).footer()).html('Total: ' +",
+                                                      "$(api.column(1).footer()).html('Total: ' +",
                                                                                       if (currency_before) paste0("'", user_currency, "'", "+") else '',
                                                                                       "total.format(2, 3, '.', ',') +",
                                                                                       if (!currency_before) paste0("'", user_currency, "'") else '',
                                                                                       ");", 
+                                                      "$(api.column(1).footer()).attr('style', function(i,s) { return (s || '') + 'font-weight: bold !important; text-align: right !important;' });",
+                                                      "$('div.dataTables_info').attr('style', function(i,s) { return (s || '') + 'font-weight: normal !important; text-align: left !important; padding: 0 !important;' });",
+                                                      "$('div.dataTables_info').appendTo($('tfoot tr th:first-child'));",
                                                       "}")))) %>% 
     formatStyle("Amount",
                 color = DT::styleInterval(cuts = c(-0.001, 0.001),
