@@ -699,26 +699,36 @@ plot_bucket_balance <- function(buckets_ready,
                       data %>% 
                         # Only plot the buckets within the bucket group
                         mutate(category = fct_drop(category)) %>% 
+                        mutate(text_x = ifelse(balance < 0, 0, balance)) %>% 
+                        mutate(value_labels = str_c(" ", value_labels)) %>% 
                         # Create the plotly bar chart
                         plot_ly(x = ~balance,
                                 y = ~category,
-                                text = ~value_labels,
-                                textposition = "outside",
                                 cliponaxis = FALSE,
                                 color = bucket_group,
                                 type = "bar",
-                                hovertemplate = glue::glue("%{{y}}: %{{x:{plotly_separators}0f}}")) %>% 
+                                hovertemplate = glue::glue("%{{y}}: %{{x:{plotly_separators}0f}}")) %>%
+                        # Add the values separately to plot negative values to the right from zero
+                        add_trace(x = ~text_x,
+                                  y = ~category,
+                                  text = ~value_labels,
+                                  textposition = "right",
+                                  cliponaxis = FALSE,
+                                  color = bucket_group,
+                                  type = "scatter",
+                                  mode = "text",
+                                  hoverinfo = "skip") %>% 
                         # Use annotations to create the title per subplot
                         # This is where the index (row_num) is needed for correct placement of the title
                         add_annotations(
                           x = 0,
                           y = 1,
-                          xref = str_c("x", row_num, " domain"),
-                          yref = str_c("y", row_num, " domain"),
+                          xref = "paper",
+                          yref = str_c("y", ifelse(row_num > 1, row_num, ""), " domain"),
                           text = str_c("<b>",bucket_group,"</b>"),
                           xanchor = "left",
                           yanchor = "bottom",
-                          showarrow = F) %>% 
+                          showarrow = FALSE) %>% 
                         # Make sure we show all the buckets with dtick
                         layout(yaxis = list(type = "category", dtick = 1),
                                separators = plotly_separators,
