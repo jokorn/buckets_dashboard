@@ -172,7 +172,17 @@ buckets_monthly <- transactions %>%
   distinct()
 
 # Create account balances from end balance and transactions
-assets_liabilities <- acc_trans %>%
+# Find the date range of the transactions
+date_range <- range(acc_trans$posted %>% str_sub(1,10) %>% ymd()) %>% floor_date("month")
+# Prepare all months pr account
+all_accounts <- expand_grid(acc_balance %>% 
+  select(account_id = id,
+         end_balance = balance,
+         name = name),
+  month = seq(date_range[1], date_range[2], "month"))
+
+# netflow per account per month
+netflow_pr_account <- acc_trans %>%
   # Report last date in each month for easy matching with buckets reports
   # NB: There is a bug in Buckets so the last transactions in each month is not included
   # in the monthly net wealth report https://github.com/buckets/application/issues/542
@@ -183,15 +193,12 @@ assets_liabilities <- acc_trans %>%
   # Calculate net flow pr account pr month
   group_by(account_id, month) %>% 
   summarise(net_flow = sum(amount/100)) %>% 
-  ungroup() %>% 
-  # Add the end balance and account names
-  right_join(acc_balance %>% select(account_id = id,
-                                   end_balance = balance,
-                                   name),
-            by = "account_id") %>% 
-  tidyr::complete(month, tidyr::nesting(account_id, name, end_balance), fill = list(amount = 0)) %>% 
-  filter(!is.na(month)) %>% 
-  mutate_if(is.numeric, ~replace_na(.x, 0)) %>% 
+  ungroup()
+
+# Combine the netflow, endbalance and account names and then accumulate
+assets_liabilities <- all_accounts %>% 
+  left_join(netflow_pr_account, by = c("account_id", "month")) %>% 
+  mutate(net_flow = replace_na(net_flow, 0)) %>% 
   # Prepare to accumulate = take end balance and then pr month add net flow (cumulatively)
   group_by(account_id, name, end_balance) %>%
   group_nest() %>% 
@@ -437,8 +444,6 @@ transactions_table <- function(data_source,
   sketch <- htmltools::tags$table(
     tableHeader(c("", colnames(data_source_ready))),
     tableFooter(rep("", 2)))
-  
-  #browser()
   
   # Create the datatable. Fixed header not possible due to bug with multiple 
   # datatables in tabsets, so use scrollY instead
