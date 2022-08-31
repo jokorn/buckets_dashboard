@@ -141,35 +141,44 @@ monthly <- everything %>%
   relocate(bucket_group)
 
 # Buckets summary pr month
-buckets_monthly <- transactions %>%
-  left_join(buckets, by = c("bucket_id" = "id")) %>%
-  left_join(bucket_groups %>% select(id, bucket_group = name), by = c("group_id" = "id")) %>% 
-  mutate(transaction = !is.na(account_trans_id)) %>%
-  mutate(name = ifelse(kicked == 1, str_c(name, " (kicked)"), name)) %>% 
-  mutate(bucket_group = ifelse(kicked == 1, "Kicked", bucket_group)) %>% 
-  mutate(positive = amount > 0) %>%
+# Find range of transaction dates
+date_range_transactions <- range(transactions$posted %>% 
+                                   str_sub(1,10) %>% 
+                                   ymd()) %>% floor_date("month")
+# Create the grid we want to populate
+bucket_transactions_grid <- expand_grid(buckets_ready %>% rename(name = category),
+                                        posted = seq(date_range_transactions[1],
+                                                     date_range_transactions[2],
+                                                     "month"),
+                                        category = as_factor(c("Transaction - Ingoing",
+                                                               "Transaction - Outgoing",
+                                                               "Budgeted - Ingoing",
+                                                               "Budgeted - Outgoing"))
+                                        )
+# Amount pr category pr month                          
+bucket_transactions <- transactions %>% 
+  mutate(amount = amount/100) %>% 
+  mutate(transaction = !is.na(account_trans_id)) %>% 
+  mutate(positive = amount > 0) %>% 
   mutate(category = case_when(transaction & positive ~ "Transaction - Ingoing",
                               transaction & !positive ~ "Transaction - Outgoing",
                               !transaction & positive ~ "Budgeted - Ingoing",
                               !transaction & !positive ~ "Budgeted - Outgoing")) %>%
-  select(posted,
-         amount,
-         name,
-         bucket_group,
-         category) %>%
-  mutate(bucket_group = ifelse(is.na(bucket_group), "Kicked", bucket_group)) %>% 
-  mutate(amount = amount / 100) %>%
-  mutate(posted = floor_date(ymd(str_sub(posted, 1, 10)), "month")) %>%
-  group_by(posted, bucket_group, name, category) %>%
-  summarise(amount = sum(amount)) %>%
-  mutate(name = factor(name),
-         category = factor(category,
+  mutate(category = factor(category,
                            levels = c("Budgeted - Ingoing",
                                       "Transaction - Ingoing",
                                       "Budgeted - Outgoing",
-                                      "Transaction - Outgoing")))%>%
-  tidyr::complete(nesting(name, bucket_group), category, posted, fill = list(amount = 0)) %>% 
-  distinct()
+                                      "Transaction - Outgoing"))) %>% 
+  mutate(posted = floor_date(ymd(str_sub(posted, 1, 10)), "month")) %>% 
+  group_by(bucket_id, posted, category) %>% 
+  summarize(amount = sum(amount)) %>% 
+  ungroup()
+
+# Add the transactions to the grid
+buckets_monthly <- bucket_transactions_grid %>% 
+  left_join(bucket_transactions,
+            by = c("bucket_id", "posted", "category")) %>% 
+  mutate(amount = replace_na(amount, 0))
 
 # Create account balances from end balance and transactions
 # Find the date range of the transactions
