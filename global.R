@@ -265,7 +265,7 @@ expenses_named_list <- lapply(split(expenses_named_prepare$category,
                               as.list)
 # Add "Off-budget" manually to fix the forecasting report which has this category
 # for transactions in off-budget and closed accounts
-expenses_named_list$`Off-budget` <- "Off-budget"
+expenses_named_list$`Off-budget` <- list("Off-budget")
 
 # Check for duplicate bucket names so we can warn the user using a modal in server
 all_buckets <- c(as.character(expenses_named_prepare$category),
