@@ -182,16 +182,16 @@ shinyServer(function(input, output, session) {
                 filter(category %in% input$income_buckets_filter_choices) %>% 
                 group_by(category) %>% 
                 summarize(amount = sum(amount)) %>% 
-                mutate(parent = "Income") %>% 
+                mutate(parent = " Income ") %>% 
                 filter(amount != 0) %>% 
                 mutate(prop = amount / sum(amount)) %>%
-                mutate(parent = if_else(prop < income_other_threshold, "Other", "Income"))
+                mutate(parent = if_else(prop < income_other_threshold, "Other", " Income "))
                   
                 second <- first %>% 
                   group_by(parent) %>% 
                   summarize(amount = sum(amount)) %>%
                   filter(parent == "Other") %>%
-                  mutate(category = "Other", parent = "Income")
+                  mutate(category = "Other", parent = " Income ")
                 
                 bind_rows(first, second)
                 },
