@@ -32,7 +32,7 @@ shinyUI(fluidPage(
                                separator = " to ",
                                toggleSelected = FALSE,
                                addon = "none",
-                               dateFormat = "yyyy-M",
+                               dateFormat = "yyyy-MMM",
                                range = TRUE,
                                view = "months",
                                minView = "months",

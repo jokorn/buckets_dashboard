@@ -64,6 +64,13 @@ income <- tbl(con, "account_transaction") %>% collect()
 acc_balance <- tbl(con, "account") %>% collect()
 acc_trans <- tbl(con, "account_transaction") %>% collect()
 
+# Find range of transaction dates
+date_range_transactions <- range(transactions %>% 
+                                   filter(!is.na(account_trans_id)) %>%
+                                   pull(posted) %>% 
+                                   str_sub(1,10) %>% 
+                                   ymd()) %>% floor_date("month")
+
 # Add bucket groups to buckets
 buckets_ready <- buckets %>% 
   select(bucket_id = id, 
@@ -130,21 +137,26 @@ everything <- bind_rows(income_ready,
   mutate(category = factor(category) %>% fct_inorder) %>% 
   mutate(bucket_group = fct_reorder(bucket_group, group_id))
 
-# Create monthly summary
-monthly <- everything %>% 
+# Buckets summary pr month
+# Prepare monthly sum per bucket
+monthly_summary <- everything %>% 
   mutate(month = floor_date(posted, "month")) %>% 
   group_by(bucket_group, category, month) %>% 
   summarize(amount = sum(amount) / 100) %>% 
-  ungroup() %>% 
-  arrange(month) %>% 
-  complete(nesting(category, bucket_group), month, fill = list(amount = 0)) %>% 
-  relocate(bucket_group)
+  ungroup()
 
-# Buckets summary pr month
-# Find range of transaction dates
-date_range_transactions <- range(transactions$posted %>% 
-                                   str_sub(1,10) %>% 
-                                   ymd()) %>% floor_date("month")
+# Prepare grid to ensure amount for all bucket_group, category, month combinations
+monthly_grid <- expand_grid(monthly_summary %>% distinct(bucket_group, category),
+                            month = seq(date_range_transactions[1],
+                                        date_range_transactions[2],
+                                        by = "month"))
+
+# Combine grid and monthly summary and set missing amounts to zero
+monthly <- left_join(monthly_grid,
+                     monthly_summary,
+                     by = c("bucket_group", "category", "month")) %>% 
+  mutate(amount = replace_na(amount, 0))
+
 # Create the grid we want to populate
 bucket_transactions_grid <- expand_grid(buckets_ready %>% rename(name = category),
                                         posted = seq(date_range_transactions[1],
@@ -332,6 +344,7 @@ expense_income_table <- function(data_source,
       ungroup()
     
   } else {
+    
     data_source_prepare <- data_source %>% 
       filter(category %in% buckets_filter) %>% 
       mutate(month = strftime(month, format = "%Y-%b")) %>% 
@@ -386,7 +399,7 @@ expense_income_table <- function(data_source,
                                  selection = list(target = "cell"))
   }
   
-  # Format columns with colors, string formatm etc.
+  # Format columns with colors, string format etc.
   datatable_prepare %>% 
     formatStyle(c(date_filter %>% strftime("%Y-%b"),
                 "Average",
