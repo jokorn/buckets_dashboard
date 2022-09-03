@@ -329,7 +329,6 @@ expense_income_table <- function(data_source,
 
   # Switch depending on whether it is buckets or bucket groups view
   if (bucketgroups_view) {
-    
     data_source_prepare <- data_source %>% 
       filter(category %in% buckets_filter) %>% 
       group_by(bucket_group, month) %>% 
@@ -361,7 +360,7 @@ expense_income_table <- function(data_source,
   # Depending on actionbutton status, filter out columns with total = 0
   if (show_zero_totals == FALSE){
     data_source_prepare <- data_source_prepare %>% 
-      filter(if_any(is.numeric, ~ .x != 0))
+      filter(if_any(where(is.numeric), ~ .x != 0))
   }
   
   # Add "total" row at the bottom

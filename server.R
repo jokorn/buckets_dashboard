@@ -28,9 +28,9 @@ shinyServer(function(input, output, session) {
       expense_income_table(data_source =  monthly %>% 
                              filter(month >= input$date_range[[1]],
                                     month <= input$date_range[[2]]),
-                           date_filter = seq.Date(input$date_range[[1]],
-                                                  input$date_range[[2]],
-                                                  by = "month"),
+                           date_filter = seq(input$date_range[[1]],
+                                             input$date_range[[2]],
+                                             by = "month"),
                            buckets_filter = c(input$income_buckets_filter_choices,
                                               input$expense_buckets_filter_choices),
                            bucketgroups_view = input$toggle_report_view,
