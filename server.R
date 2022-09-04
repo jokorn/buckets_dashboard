@@ -123,8 +123,8 @@ shinyServer(function(input, output, session) {
     observeEvent(input$select_current_month, {
       updateDateRangeInput(session,
                            inputId = "date_range",
-                           start = floor_date(today("UTC"), "month"),
-                           end = floor_date(today("UTC"), "month"))
+                           start = floor_date(today() %>% force_tz("UTC"), "month"),
+                           end = floor_date(today() %>% force_tz("UTC"), "month"))
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
     }
     )
@@ -132,8 +132,8 @@ shinyServer(function(input, output, session) {
     observeEvent(input$select_current_year, {
       updateDateRangeInput(session,
                            inputId = "date_range",
-                           start = max(today("UTC") %>% floor_date("year"), dates_available[1]),
-                           end = floor_date(today("UTC"), "month"))
+                           start = max(today() %>% force_tz("UTC") %>% floor_date("year"), dates_available[1]),
+                           end = floor_date(today() %>% force_tz("UTC"), "month"))
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
     }
     )

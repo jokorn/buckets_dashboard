@@ -24,7 +24,7 @@ format_currency <- function(value) {
                  suffix = ifelse(!currency_before, user_currency, ""))
 }
 
-# Custom date input from https://stackoverflow.com/questions/31152960/display-only-months-in-daterangeinput-or-dateinput-for-a-shiny-app-r-programmin
+# Custom date input inspired by https://stackoverflow.com/questions/31152960/display-only-months-in-daterangeinput-or-dateinput-for-a-shiny-app-r-programmin
 dateRangeInput2 <- function(inputId, label, start = NULL, end = NULL,
                            min = NULL, max = NULL, format = "yyyy-mm-dd", startview = "month",
                            minviewmode="months", #added manuallySS
@@ -369,8 +369,8 @@ all_transactions <- acc_trans %>%
 dates_available <- range(monthly$month) 
 
 # Set reporting period
-date_from <- max(today("UTC") %>% floor_date("year"), dates_available[1])
-date_to <- today("UTC")
+date_from <- max(today() %>% force_tz("UTC") %>% floor_date("year"), dates_available[1])
+date_to <- today() %>% force_tz("UTC")
 
 # Create named lists with expenses, income and accounts for the dropdown menus
 income_named_prepare <- monthly %>%
@@ -1171,13 +1171,13 @@ plot_forecast <- function(all_transactions,
   
   # Start netwealth with and without account filters
   netwealth_now_total <- assets_liabilities %>% 
-    filter(month == ceiling_date(today("UTC"), "month") - 1) %>% 
+    filter(month == ceiling_date(today() %>% force_tz("UTC"), "month") - 1) %>% 
     pull(balance) %>% 
     sum()
   
   netwealth_now_filtered <- assets_liabilities %>% 
     filter(name %in% input_accounts) %>% 
-    filter(month == ceiling_date(today("UTC"), "month") - 1) %>% 
+    filter(month == ceiling_date(today() %>% force_tz("UTC"), "month") - 1) %>% 
     pull(balance) %>% 
     sum()
   
@@ -1188,8 +1188,8 @@ plot_forecast <- function(all_transactions,
   
   # Sample from netflow with replacement
   forecast <- tibble(sim = 1:n_sims) %>% 
-    mutate(data = list(tibble(month = seq(today("UTC") %m+% months(1),
-                                          today("UTC") %m+% months(n_months), "month") %>%
+    mutate(data = list(tibble(month = seq(force_tz(today(), "UTC") %m+% months(1),
+                                          force_tz(today(), "UTC") %m+% months(n_months), "month") %>%
                                 floor_date("month")))) %>% 
     mutate(data = map(data, ~ .x %>% mutate(netflow = sample(netflow_pr_month$netflow,
                                                              n_months,
