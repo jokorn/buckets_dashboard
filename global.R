@@ -369,8 +369,8 @@ all_transactions <- acc_trans %>%
 dates_available <- range(monthly$month) 
 
 # Set reporting period
-date_from <- max(today() %>% floor_date("year"), dates_available[1])
-date_to <- today()
+date_from <- max(today("UTC") %>% floor_date("year"), dates_available[1])
+date_to <- today("UTC")
 
 # Create named lists with expenses, income and accounts for the dropdown menus
 income_named_prepare <- monthly %>%
@@ -1171,13 +1171,13 @@ plot_forecast <- function(all_transactions,
   
   # Start netwealth with and without account filters
   netwealth_now_total <- assets_liabilities %>% 
-    filter(month == ceiling_date(today(), "month") - 1) %>% 
+    filter(month == ceiling_date(today("UTC"), "month") - 1) %>% 
     pull(balance) %>% 
     sum()
   
   netwealth_now_filtered <- assets_liabilities %>% 
     filter(name %in% input_accounts) %>% 
-    filter(month == ceiling_date(today(), "month") - 1) %>% 
+    filter(month == ceiling_date(today("UTC"), "month") - 1) %>% 
     pull(balance) %>% 
     sum()
   
@@ -1188,8 +1188,8 @@ plot_forecast <- function(all_transactions,
   
   # Sample from netflow with replacement
   forecast <- tibble(sim = 1:n_sims) %>% 
-    mutate(data = list(tibble(month = seq(today() %m+% months(1),
-                                          today() %m+% months(n_months), "month") %>%
+    mutate(data = list(tibble(month = seq(today("UTC") %m+% months(1),
+                                          today("UTC") %m+% months(n_months), "month") %>%
                                 floor_date("month")))) %>% 
     mutate(data = map(data, ~ .x %>% mutate(netflow = sample(netflow_pr_month$netflow,
                                                              n_months,
