@@ -24,23 +24,6 @@ shinyUI(fluidPage(
     # Sidebar with input controls / filters
     sidebarLayout(
         sidebarPanel(width = 2,
-            # Input of date range for filtering
-            # dateRangeInput2(
-            #   inputId = "date_range",
-            #   label = "Select months for the reports",
-            #   start = date_from,
-            #   end = date_to,
-            #   min = min(monthly$month),
-            #   max = max(monthly$month),
-            #   format = "yyyy-M",
-            #   startview = "year",
-            #   weekstart = 0,
-            #   language = "en",
-            #   separator = " to ",
-            #   width = NULL,
-            #   autoclose = TRUE
-            # ),
-            
             airDatepickerInput("date_range",
                                "Select months for the reports",
                                autoClose = TRUE,

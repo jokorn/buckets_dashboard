@@ -115,10 +115,6 @@ shinyServer(function(input, output, session) {
       updateAirDateInput(session,
                          inputId = "date_range",
                          value = c(min(monthly$month), max(monthly$month)))
-      # updateDateRangeInput(session,
-      #                      inputId = "date_range",
-      #                      start = min(monthly$month),
-      #                      end = max(monthly$month))
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
     }
     )
@@ -127,10 +123,6 @@ shinyServer(function(input, output, session) {
       updateAirDateInput(session,
                          inputId = "date_range",
                          value = c(floor_date(today2(), "month"), floor_date(today2(), "month")))
-      # updateDateRangeInput(session,
-      #                      inputId = "date_range",
-      #                      start = floor_date(today2(), "month"),
-      #                      end = floor_date(today2(), "month"))
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
     }
     )
@@ -140,10 +132,6 @@ shinyServer(function(input, output, session) {
                          inputId = "date_range",
                          value = c(max(today2() %>% floor_date("year"), dates_available[1]),
                                    floor_date(today2(), "month")))
-      # updateDateRangeInput(session,
-      #                      inputId = "date_range",
-      #                      start = max(today2() %>% floor_date("year"), dates_available[1]),
-      #                      end = floor_date(today2(), "month"))
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
     }
     )
