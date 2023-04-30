@@ -201,6 +201,7 @@ shinyServer(function(input, output, session) {
               parents = ~parent,
               labels = ~category,
               values = ~amount,
+              insidetextorientation = "horizontal",
               textinfo = income_sunburst_textinfo,
               hoverinfo = income_sunburst_hoverinfo,
               type = "sunburst") %>% 
@@ -256,6 +257,7 @@ shinyServer(function(input, output, session) {
               textinfo = expenses_sunburst_textinfo,
               hoverinfo = expenses_sunburst_hoverinfo,
               values = ~amount,
+              insidetextorientation = "horizontal",
               maxdepth = 2,
               branchvalues = "total",
               type = "sunburst") %>% 
