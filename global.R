@@ -275,7 +275,8 @@ income_named_list <- lapply(split(as.character(income_named_prepare$category),
                             as.list)
 
 expenses_named_prepare <- buckets_ready %>%
-  distinct(bucket_group, category)
+  distinct(bucket_group, category) %>% 
+  filter(!(category %in% manual_categorization$category))
 
 expenses_named_list <- lapply(split(expenses_named_prepare$category, 
                                     expenses_named_prepare$bucket_group),
