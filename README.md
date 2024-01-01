@@ -23,7 +23,7 @@ install.packages(c("tidyverse",
                    "janitor",
                    "plotly"))
 ```
-- Some of these packages may fail to install as they are dependent on `libcurl` and `openssl`, which must be installed outside of R. Solutions differ depending on the OS, but try to install the following:
+- Some of these packages may fail to install as they are dependent on external libraries. Please look trough the error messages in RStudio in case the installation of some of the packages fail as there are often suggestions on how to solve the issue. The below external libraries must be installed outside of R. This list can change as R packages are updated. Solutions differ depending on the OS, but try to install the following:
 
   For `libcurl`:
 
@@ -37,6 +37,26 @@ install.packages(c("tidyverse",
   - rpm: openssl-devel (Fedora, CentOS, RHEL)
   - csw: libssl_dev (Solaris)
   - brew: openssl@1.1 (Mac OSX)
+
+  For `fontconfig freetype2`:
+  
+  - deb: libfontconfig1-dev (Debian, Ubuntu, etc)
+  - rpm: fontconfig-devel (Fedora, EPEL)
+  - csw: fontconfig_dev (Solaris)
+  - brew: freetype (OSX)
+  
+  For `harfbuzz freetype2 fribidi`:
+  
+  - deb: libharfbuzz-dev libfribidi-dev (Debian, Ubuntu, etc)
+  - rpm: harfbuzz-devel fribidi-devel (Fedora, EPEL)
+  - csw: libharfbuzz_dev libfribidi_dev (Solaris)
+  - brew: harfbuzz fribidi (OSX)
+  
+  For `freetype2 libpng libtiff-4 libjpeg`:
+  
+  - deb: libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev (Debian, Ubuntu, etc)
+  - rpm: freetype-devel libpng-devel libtiff-devel libjpeg-turbo-devel (Fedora, CentOS, RHEL)
+  - csw: libfreetype_dev libpng16_dev libtiff_dev libjpeg_dev (Solaris)
 
 - Edit "config.R". Especially important is to specify the path to the .buckets file, and to add "saving buckets" if you want to calculate your saving rate.
 - Run the app. Multiple possibilities:
