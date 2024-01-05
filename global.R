@@ -1080,12 +1080,15 @@ plot_forecast <- function(all_transactions,
   n_years <- 10
   n_months <- n_years*12
   
+  # Use custom function to avoid problems with sampling from length 1 vectors
+  safer_sample <- function(x, ...) x[sample.int(length(x), ...)]
+  
   # Sample from netflow with replacement
   forecast <- tibble(sim = 1:n_sims) %>% 
     mutate(data = list(tibble(month = seq(today2() %m+% months(1),
                                           today2() %m+% months(n_months), "month") %>%
                                 floor_date("month")))) %>% 
-    mutate(data = map(data, ~ .x %>% mutate(netflow = sample(netflow_pr_month$netflow,
+    mutate(data = map(data, ~ .x %>% mutate(netflow = safer_sample(netflow_pr_month$netflow,
                                                              n_months,
                                                              replace = TRUE)) %>% 
                         mutate(netwealth = accumulate(netflow, `+`)))) %>% 
