@@ -561,7 +561,7 @@ plot_net_wealth <- function(assets_liabilities,
           name = "Assets",
           hovertemplate = hovertemplate,
           marker = list(color = "green")) %>% 
-    add_trace(y =~Liabilities,
+    add_trace(y =~Liabilities*-1,
               data = plot_assets_liabilities,
               hovertemplate = hovertemplate,
               name = "Liabilities",
@@ -579,7 +579,8 @@ plot_net_wealth <- function(assets_liabilities,
                         dtick = "M1",
                         tickformat="%Y-%b"),
            legend = list(x = 0, y = 1.15),
-           barmode = "group",
+           barmode = "relative",
+           #barmode = "group",
            title = netwealth_title) %>% 
     config(displayModeBar = TRUE,
            displaylogo = FALSE,
@@ -1146,4 +1147,213 @@ plot_forecast <- function(all_transactions,
                               yshift = 10,
                               showarrow = F,
                               font = list(size = 14)))
+}
+
+create_stock_data <- function(input_date_range_start,
+                              input_date_range_end,
+                              stock_account,
+                              stock_transfers,
+                              stock_gains) {
+  stock_data <- tibble(posted = seq(input_date_range_start,
+                                    input_date_range_end,
+                                    by = "month")) %>% 
+    left_join(all_transactions %>% 
+                mutate(posted = floor_date(posted, "month")) %>% 
+                filter(account == stock_account),
+              by = "posted") %>% 
+    mutate(category = case_when(memo %in% stock_transfers ~ "Transfer",
+                                memo %in% stock_gains ~ "Gains",
+                                TRUE ~ NA_character_)) %>% 
+    mutate(category = factor(category, 
+                             levels = c("Transfer",
+                                        "Gains"))) %>% 
+    group_by(posted, category) %>% 
+    summarize(Amount = sum(amount)/100, 
+              .groups = "drop") %>% 
+    tidyr::complete(posted, category, fill = list(Amount = 0)) %>% 
+    filter(!is.na(category)) %>% 
+    arrange(posted) %>% 
+    filter(row_number() >= min(row_number()[Amount != 0])) %>% 
+    pivot_wider(id_cols = "posted",
+                names_from = "category", 
+                values_from = "Amount") %>% 
+    mutate(Flow = Gains + Transfer) %>% 
+    arrange(posted) %>% 
+    mutate(Total_end = cumsum(Flow)) %>% 
+    mutate(Total_gains = cumsum(Gains)) %>% 
+    mutate(Total_transfers = cumsum(Transfer)) %>% 
+    mutate(Gains_rate = (Gains / (Total_end - Gains)))
+}
+
+plot_stock_historical <- function(stock_data) {
+  
+  stock_data <- stock_data %>% 
+    mutate(gains_color = if_else(Total_gains >= 0, "green", "red"))
+  
+  plot_ly(stock_data,
+          x = ~posted,
+          y = ~Total_transfers,
+          type = "bar",
+          name = "Total transfers",
+          hovertemplate = hovertemplate,
+          marker = list(color = "grey")) %>% 
+    add_trace(y = ~Total_gains,
+              data = stock_data,
+              hovertemplate = hovertemplate,
+              name = "Total gains/losses",
+              marker = list(color = ~gains_color)) %>% 
+    add_trace(y = ~Total_end,
+              hovertemplate = hovertemplate,
+              data = stock_data,
+              name = "Total value",
+              type = "scatter",
+              mode = "lines+markers",
+              marker = list(color = "black", size = 10),
+              line = list(color = "black")) %>%
+    layout(yaxis = list(title = ""),
+           xaxis = list(title = "",
+                        dtick = "M1",
+                        tickformat="%Y-%b"),
+           legend = list(x = 0, y = 1.15),
+           barmode = "relative",
+           title = "Historical stock data") %>% 
+    config(displayModeBar = TRUE,
+           displaylogo = FALSE,
+           modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                      "autoScale", "resetScale", "hoverClosestCartesian",
+                                      "hoverCompareCartesian", "lasso2d"),
+           toImageButtonOptions = list(height= NULL,
+                                       width= NULL)) %>% 
+    layout(separators = plotly_separators)
+}
+
+calculate_start_value <- function(input_start_value,
+                                  stock_account,
+                                  stock_transfers,
+                                  stock_gains,
+                                  input_date_range_start,
+                                  input_date_range_end) {
+  input_start_value
+}
+
+calculate_gains <- function(input_stock_gains_per_year,
+                            stock_account,
+                            stock_transfers,
+                            stock_gains,
+                            input_date_range_start,
+                            input_date_range_end) {
+  (1+input_stock_gains_per_year/100)^(1/12)
+}
+
+calculate_transfers <- function(input_invested_per_month,
+                            stock_account,
+                            stock_transfers,
+                            stock_gains,
+                            input_date_range_start,
+                            input_date_range_end) {
+  input_invested_per_month
+}  
+
+plot_stock_forecast <- function(input_stock_time_years,
+                                stock_forecast_start_value,
+                                stock_forecast_gains, 
+                                stock_forecast_transfers,
+                                input_stock_mean_sample) {
+  
+  accumulate_gains <- function(start_value,
+                               transfers,
+                               gains) {
+    
+    value_after_gains <- vector("numeric", length = length(transfers))
+    value_after_gains[1] <- start_value
+    gains_losses <- vector("numeric", length = length(transfers))
+    gains_losses[1] <- 0
+    for (i in 2:length(transfers)) {
+      value_after_gains[i] <- (value_after_gains[i-1]+transfers[i])*gains[i]
+      gains_losses[i] <- (value_after_gains[i-1]+transfers[i])*gains[i]-(value_after_gains[i-1]+transfers[i])
+    }
+    tibble(value_after_gains = value_after_gains,
+           gains_losses = gains_losses)
+  } 
+  
+  forecast_data <- tibble(month = floor_date(today(), "month"),
+                          start_value = stock_forecast_start_value,
+                          gains = 0,
+                          transfers = 0,
+                          total_value = start_value) %>% 
+    bind_rows(tibble(month = seq(from = floor_date(today() %m+% months(1), "month"), by = "month", length.out = input_stock_time_years*12),
+                     start_value = stock_forecast_start_value,
+                     gains = stock_forecast_gains,
+                     transfers = stock_forecast_transfers))
+    
+  value_after_gains <- accumulate_gains(start_value = stock_forecast_start_value,
+                                        transfers = forecast_data$transfers,
+                                        gains = forecast_data$gains)
+  
+  forecast_data_for_plotting <- forecast_data %>% 
+    bind_cols(value_after_gains) %>% 
+    mutate(total_gains_losses = cumsum(gains_losses),
+           total_transfers = cumsum(transfers)) %>% 
+    mutate(gains_color = if_else(total_gains_losses < 0, "red", "green"))
+  
+  last_value <- forecast_data_for_plotting$value_after_gains %>% 
+    last() %>% 
+    format_currency()
+  
+  four_percent_yearly <- forecast_data_for_plotting$value_after_gains %>% 
+    last() %>% 
+    magrittr::multiply_by(0.04) %>% 
+    format_currency()
+  
+  four_percent_monthly <- forecast_data_for_plotting$value_after_gains %>% 
+    last() %>% 
+    magrittr::multiply_by(0.04/12) %>% 
+    format_currency()
+  
+  forecasted_stock_data_title <- HTML(glue::glue("Forecasted stock data<br>Final value = {last_value}<br>Four percent rule yearly before taxes = {four_percent_yearly}<br>Four percent rule monthly before taxes = {four_percent_monthly}"))
+  
+  plot_ly(forecast_data_for_plotting,
+          x = ~month,
+          y = ~start_value,
+          type = "bar",
+          name = "Initial value",
+          hovertemplate = hovertemplate,
+          marker = list(color = "grey")) %>% 
+    add_trace(y = ~total_transfers,
+              data = forecast_data_for_plotting,
+              hovertemplate = hovertemplate,
+              name = "Total transfers",
+              marker = list(color = "blue")) %>% 
+    add_trace(y = ~total_gains_losses,
+              data = forecast_data_for_plotting,
+              hovertemplate = hovertemplate,
+              name = "Total gains/losses",
+              marker = list(color = ~gains_color)) %>% 
+    add_trace(y = ~value_after_gains,
+              hovertemplate = hovertemplate,
+              data = forecast_data_for_plotting,
+              name = "Total value",
+              type = "scatter",
+              mode = "lines+markers",
+              marker = list(color = "black", size = 10),
+              line = list(color = "black")) %>%
+    layout(yaxis = list(title = ""),
+           xaxis = list(title = "",
+                        dtick = "M3",
+                        tickformat="%Y-%b"),
+           legend = list(x = 0, y = 1.15),
+           barmode = "relative",
+           title = forecasted_stock_data_title) %>% 
+    config(displayModeBar = TRUE,
+           displaylogo = FALSE,
+           modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                      "autoScale", "resetScale", "hoverClosestCartesian",
+                                      "hoverCompareCartesian", "lasso2d"),
+           toImageButtonOptions = list(height= NULL,
+                                       width= NULL)) %>% 
+    layout(separators = plotly_separators)
+  
+  
+    
+  
 }

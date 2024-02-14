@@ -391,6 +391,106 @@ shinyServer(function(input, output, session) {
       
     })
     
+    # When a "stock" account has been selected render the input UI for selecting
+    # transfers and gains transactions
+    output$stock_transfers <- renderUI({
+      shiny:::req(input$stock_account)
+      pickerInput(inputId = "stock_transfers",
+                  label = NULL,
+                  choices = all_transactions %>% 
+                    filter(account == input$stock_account) %>% 
+                    distinct(memo) %>% 
+                    arrange(memo) %>% 
+                    pull(memo),
+                  multiple = TRUE,
+                  width = "fit",
+                  options = list(`actions-box` = TRUE,
+                                 header = "Transfers",
+                                 `selected-text-format` = "static",
+                                 title = "Select all the transfer transactions"))
+    })
+    
+    output$stock_gains <- renderUI({
+      shiny:::req(input$stock_account)
+      pickerInput(inputId = "stock_gains",
+                  label = NULL,
+                  choices = all_transactions %>% 
+                    filter(account == input$stock_account) %>% 
+                    distinct(memo) %>% 
+                    arrange(memo) %>% 
+                    pull(memo),
+                  multiple = TRUE,
+                  width = "fit",
+                  options = list(`actions-box` = TRUE,
+                                 header = "Gains",
+                                 `selected-text-format` = "static",
+                                 title = "Select all the gains transactions"))
+    })
+    
+    # When all the data needed for forecasting stocks, then render the historical data
+    output$stock_historical <- renderPlotly({
+      shiny:::req(input$stock_account,
+                  input$stock_transfers,
+                  input$stock_gains,
+                  input$date_range[[1]],
+                  input$date_range[[2]],
+                  cancelOutput = TRUE)
+      
+      stock_data <- create_stock_data(input$date_range[1],
+                                      input$date_range[2],
+                                      input$stock_account,
+                                      input$stock_transfers,
+                                      input$stock_gains)
+      
+      
+      plot_stock_historical(stock_data)
+      
+    })
+    
+    # When we have the needed data, then forecast and plot the stock values 
+    output$stock_forecast <- renderPlotly({
+      
+      
+      validate(
+        need(is.numeric(input$stock_time), "Enter a numeric value for the number of years to forecast"),
+        need(input$stock_time < 51, "Maximum number of years to forecast is 50")
+      )
+      
+      stock_forecast_start_value <- calculate_start_value(input$stock_start_value,
+                                                          input$stock_account,
+                                                          input$stock_transfers,
+                                                          input$stock_gains,
+                                                          input$date_range[[1]],
+                                                          input$date_range[[2]])
+      
+      stock_forecast_gains <- calculate_gains(input$stock_gains_per_year,
+                                              input$stock_account,
+                                              input$stock_transfers,
+                                              input$stock_gains,
+                                              input$date_range[[1]],
+                                              input$date_range[[2]])
+      
+      stock_forecast_transfers <- calculate_transfers(input$stock_invested_per_month,
+                                                      input$stock_account,
+                                                      input$stock_transfers,
+                                                      input$stock_gains,
+                                                      input$date_range[[1]],
+                                                      input$date_range[[2]])
+      
+      
+      req(stock_forecast_start_value,
+          stock_forecast_gains,
+          stock_forecast_transfers,
+          cancelOutput = TRUE)
+      
+      plot_stock_forecast(input$stock_time,
+                          stock_forecast_start_value,
+                          stock_forecast_gains, 
+                          stock_forecast_transfers,
+                          input$stock_mean_sample)
+      
+    })
+    
     # Select the saving buckets from config.R in the drop down menu when the button is clicked
     observeEvent(input$select_config_saving_buckets, {
       updateCheckboxGroupInput(inputId="saving_buckets_filter_choices", 

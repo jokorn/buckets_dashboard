@@ -1,8 +1,9 @@
 # Define UI
 shinyUI(fluidPage(
   useShinyjs(),
-  extendShinyjs(text = js_year_over_year_bucket_transactions, functions = c("get_bucket_transactions_bucket_group",
-                                                         "get_year_over_year_bucket_group")),
+  extendShinyjs(text = js_year_over_year_bucket_transactions, 
+                functions = c("get_bucket_transactions_bucket_group",
+                              "get_year_over_year_bucket_group")),
     tags$head(
       tags$style( 
           str_c(zoom_reverse, #Reverse zoom for plotly graphs to avoid glitches and make hover work
@@ -205,8 +206,51 @@ shinyUI(fluidPage(
                        style = "margin: 0 0 0 5px;"),
                      p(strong("Use the date, account and bucket filters on the left to customize the data used for forecasting."),
                        style = "margin: 0 0 0 5px;"),
-                     plotlyOutput("forecast", height = height_sankey))
-            ))
+                     plotlyOutput("forecast", height = height_sankey)),
+            tabPanel("Stocks",
+                     
+                     fluidPage(
+                       fluidRow(
+                         column(width = 3,
+                                numericInput("stock_time", "Number of years to forecast", 10, min = 1, max = 50),
+                                numericInput("stock_start_value",
+                                             HTML("Initial value of stocks before forecasting<br>(leave blank to use the historical data)"),
+                                             value = NA_real_),
+                                numericInput("stock_invested_per_month",
+                                             HTML("Amount invested per month<br>(leave blank to use the historical data)"),
+                                             value = NA_real_),
+                                numericInput("stock_gains_per_year",
+                                             HTML("Gains per year in percent<br>(leave blank to use the historical data)"),
+                                             value = NA_real_),
+                                p(HTML("<b>Historical data</b>")),
+                                pickerInput(inputId = "stock_account",
+                                            label = NULL,
+                                            choices = accounts_named_list,
+                                            multiple = TRUE,
+                                            width = "fit",
+                                            options = list(`actions-box` = TRUE,
+                                                           header = "Accounts",
+                                                           `selected-text-format` = "static",
+                                                           title = "Select the \"stock\" account(s)")),
+                                uiOutput("stock_transfers"),
+                                uiOutput("stock_gains"),
+                                radioButtons("stock_mean_sample",
+                                             label = "When forecasting based on historical data either sample or use mean values for monthly gains and transfers",
+                                             choices = c("Sample", "Mean"),
+                                             selected = c("Sample"))
+                         ),
+                         column(width = 9,
+                                plotlyOutput("stock_historical")
+                                )
+                       ),
+                       fluidRow(
+                         column(width = 12),
+                         plotlyOutput("stock_forecast")
+                        )
+                       )
+                     )
+            )
+          )
         )
     )
 )
