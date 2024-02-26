@@ -1302,7 +1302,9 @@ calculate_gains <- function(input_stock_gains_per_year,
       return(1+stock_data$Gains_rate)
     }
     else {
-      return(mean(1+stock_data$Gains_rate))
+      return((1 + stock_data$Gains_rate) %>% 
+               reduce(`*`) %>%
+               magrittr::raise_to_power(1/nrow(stock_data)))
     }
     
   } 
@@ -1395,8 +1397,8 @@ plot_stock_forecast <- function(input_stock_time_years,
     format_currency(accuracy = 1)
   
   forecast_data_input_gains <- forecast_data_for_plotting$gains[-1] %>% 
-    mean() %>% 
-    magrittr::raise_to_power(12) %>% 
+    reduce(`*`) %>% 
+    magrittr::raise_to_power(1/((nrow(forecast_data_for_plotting)-1)/12)) %>% 
     magrittr::subtract(1) %>% 
     scales::percent(accuracy = 0.1)
   
