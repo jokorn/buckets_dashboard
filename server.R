@@ -467,14 +467,16 @@ shinyServer(function(input, output, session) {
                                               input$stock_transfers,
                                               input$stock_gains,
                                               input$date_range[[1]],
-                                              input$date_range[[2]])
+                                              input$date_range[[2]],
+                                              input$stock_mean_sample)
       
       stock_forecast_transfers <- calculate_transfers(input$stock_invested_per_month,
                                                       input$stock_account,
                                                       input$stock_transfers,
                                                       input$stock_gains,
                                                       input$date_range[[1]],
-                                                      input$date_range[[2]])
+                                                      input$date_range[[2]],
+                                                      input$stock_mean_sample)
       
       
       req(stock_forecast_start_value,

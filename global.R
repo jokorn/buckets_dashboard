@@ -10,16 +10,20 @@ library(shinyjs)
 library(DT)
 library(janitor)
 library(plotly)
+library(checkmate)
 
 # Load the config file
 source("config.R")
 
 # Convenience function for easy conversion to user's currency (variables from config.R)
-format_currency <- function(value) {
+format_currency <- function(value, accuracy = NULL) {
+  if (is.null(accuracy)) {
+    accuracy = 0.01
+  }
   scales::dollar(value,
                  big.mark = user_mark,
                  decimal.mark = user_dec.mark,
-                 accuracy = 0.01,
+                 accuracy = accuracy,
                  prefix = ifelse(currency_before, user_currency, ""),
                  suffix = ifelse(!currency_before, user_currency, ""))
 }
@@ -27,6 +31,11 @@ format_currency <- function(value) {
 # Function to find today's date without timezone information
 today2 <- function() {
   today() %>% as.character() %>% ymd()
+}
+
+# Custom function to avoid problems with sampling from length 1 vectors
+safer_sample <- function(x, ...) {
+  x[sample.int(length(x), ...)]
 }
 
 # Hovertemplate for plotly plots
@@ -1081,9 +1090,6 @@ plot_forecast <- function(all_transactions,
   n_years <- 10
   n_months <- n_years*12
   
-  # Use custom function to avoid problems with sampling from length 1 vectors
-  safer_sample <- function(x, ...) x[sample.int(length(x), ...)]
-  
   # Sample from netflow with replacement
   forecast <- tibble(sim = 1:n_sims) %>% 
     mutate(data = list(tibble(month = seq(today2() %m+% months(1),
@@ -1154,14 +1160,16 @@ create_stock_data <- function(input_date_range_start,
                               stock_account,
                               stock_transfers,
                               stock_gains) {
-  #browser() #Create logic to return NULL when input is incomplete
-  stock_data <- tibble(posted = seq(input_date_range_start,
-                                    input_date_range_end,
-                                    by = "month")) %>% 
-    left_join(all_transactions %>% 
-                mutate(posted = floor_date(posted, "month")) %>% 
-                filter(account == stock_account),
-              by = "posted") %>% 
+
+  if (!all(test_character(stock_account, min.chars = 1),
+           test_character(stock_transfers, min.chars = 1),
+           test_character(stock_gains, min.chars = 1))) {
+    return(NULL)
+  }
+  
+  stock_data <- all_transactions %>% 
+    mutate(posted = floor_date(posted, "month")) %>% 
+    filter(account == stock_account) %>% 
     mutate(category = case_when(memo %in% stock_transfers ~ "Transfer",
                                 memo %in% stock_gains ~ "Gains",
                                 TRUE ~ NA_character_)) %>% 
@@ -1171,10 +1179,13 @@ create_stock_data <- function(input_date_range_start,
     group_by(posted, category) %>% 
     summarize(Amount = sum(amount)/100, 
               .groups = "drop") %>% 
-    tidyr::complete(posted, category, fill = list(Amount = 0)) %>% 
+    tidyr::complete(posted = seq(min(input_date_range_start, posted),
+                                 max(input_date_range_end, posted),
+                                 by = "month"),
+                    category,
+                    fill = list(Amount = 0)) %>% 
     filter(!is.na(category)) %>% 
     arrange(posted) %>% 
-    filter(row_number() >= min(row_number()[Amount != 0])) %>% 
     pivot_wider(id_cols = "posted",
                 names_from = "category", 
                 values_from = "Amount") %>% 
@@ -1183,7 +1194,14 @@ create_stock_data <- function(input_date_range_start,
     mutate(Total_end = cumsum(Flow)) %>% 
     mutate(Total_gains = cumsum(Gains)) %>% 
     mutate(Total_transfers = cumsum(Transfer)) %>% 
-    mutate(Gains_rate = (Gains / (Total_end - Gains)))
+    mutate(Total_transfers_previous_months = Total_transfers - Transfer) %>% 
+    mutate(Gains_rate = (Gains / (Total_end - Gains))) %>% 
+    # Find the first month with gains or transfers and remove all preceding months
+    filter(row_number() >= min(row_number()[Transfer != 0],
+                               row_number()[Gains != 0])) %>% 
+    # Filter months based on input date range
+    filter(posted >= input_date_range_start,
+           posted <= input_date_range_end)
 }
 
 plot_stock_historical <- function(stock_data) {
@@ -1193,11 +1211,16 @@ plot_stock_historical <- function(stock_data) {
   
   plot_ly(stock_data,
           x = ~posted,
-          y = ~Total_transfers,
+          y = ~Total_transfers_previous_months,
           type = "bar",
-          name = "Total transfers",
+          name = "Total transfers previous months",
           hovertemplate = hovertemplate,
           marker = list(color = "grey")) %>% 
+    add_trace(y = ~Transfer,
+              data = stock_data,
+              hovertemplate = hovertemplate,
+              name = "Total transfers this month",
+              marker = list(color = "blue")) %>% 
     add_trace(y = ~Total_gains,
               data = stock_data,
               hovertemplate = hovertemplate,
@@ -1242,8 +1265,16 @@ calculate_start_value <- function(input_start_value,
                                   stock_transfers,
                                   stock_gains)
   
+  if (is.null(stock_data)) {
+    return(input_start_value)
+  } 
+  else if (test_number(input_start_value)) {
+    return(input_start_value)
+  }
+  else {
+    return(stock_data$Total_end %>% last())
+  } 
   
-  input_start_value
 }
 
 calculate_gains <- function(input_stock_gains_per_year,
@@ -1251,8 +1282,31 @@ calculate_gains <- function(input_stock_gains_per_year,
                             stock_transfers,
                             stock_gains,
                             input_date_range_start,
-                            input_date_range_end) {
-  (1+input_stock_gains_per_year/100)^(1/12)
+                            input_date_range_end,
+                            input_stock_mean_sample) {
+  
+  stock_data <- create_stock_data(input_date_range_start,
+                                  input_date_range_end,
+                                  stock_account,
+                                  stock_transfers,
+                                  stock_gains)
+  
+  if (is.null(stock_data)) {
+    return((1+input_stock_gains_per_year/100)^(1/12))
+  } 
+  else if (test_number(input_stock_gains_per_year)) {
+    return((1+input_stock_gains_per_year/100)^(1/12))
+  }
+  else {
+    if (input_stock_mean_sample == "Sample") {
+      return(1+stock_data$Gains_rate)
+    }
+    else {
+      return(mean(1+stock_data$Gains_rate))
+    }
+    
+  } 
+  
 }
 
 calculate_transfers <- function(input_invested_per_month,
@@ -1260,8 +1314,30 @@ calculate_transfers <- function(input_invested_per_month,
                             stock_transfers,
                             stock_gains,
                             input_date_range_start,
-                            input_date_range_end) {
-  input_invested_per_month
+                            input_date_range_end,
+                            input_stock_mean_sample) {
+  
+  stock_data <- create_stock_data(input_date_range_start,
+                                  input_date_range_end,
+                                  stock_account,
+                                  stock_transfers,
+                                  stock_gains)
+  
+  if (is.null(stock_data)) {
+    return(input_invested_per_month)
+  } 
+  else if (test_number(input_invested_per_month)) {
+    return(input_invested_per_month)
+  }
+  else {
+    if (input_stock_mean_sample == "Sample") {
+      return(stock_data$Transfer)
+    }
+    else {
+      return(mean(stock_data$Transfer))
+    }
+    
+  } 
 }  
 
 plot_stock_forecast <- function(input_stock_time_years,
@@ -1286,15 +1362,19 @@ plot_stock_forecast <- function(input_stock_time_years,
            gains_losses = gains_losses)
   } 
   
-  forecast_data <- tibble(month = floor_date(today(), "month"),
+  forecast_data <- tibble(month = floor_date(today2(), "month"),
                           start_value = stock_forecast_start_value,
-                          gains = 0,
+                          gains = 1,
                           transfers = 0,
                           total_value = start_value) %>% 
-    bind_rows(tibble(month = seq(from = floor_date(today() %m+% months(1), "month"), by = "month", length.out = input_stock_time_years*12),
+    bind_rows(tibble(month = seq(from = floor_date(today2() %m+% months(1), "month"), by = "month", length.out = input_stock_time_years*12),
                      start_value = stock_forecast_start_value,
-                     gains = stock_forecast_gains,
-                     transfers = stock_forecast_transfers))
+                     gains = safer_sample(stock_forecast_gains,
+                                          size = input_stock_time_years*12,
+                                          replace = TRUE),
+                     transfers = safer_sample(stock_forecast_transfers,
+                                              size = input_stock_time_years*12,
+                                              replace = TRUE)))
     
   value_after_gains <- accumulate_gains(start_value = stock_forecast_start_value,
                                         transfers = forecast_data$transfers,
@@ -1306,21 +1386,35 @@ plot_stock_forecast <- function(input_stock_time_years,
            total_transfers = cumsum(transfers)) %>% 
     mutate(gains_color = if_else(total_gains_losses < 0, "red", "green"))
   
+  forecast_data_input_start <- forecast_data_for_plotting$start_value %>% 
+    first() %>% 
+    format_currency(accuracy = 1)
+  
+  forecast_data_input_transfers <- forecast_data_for_plotting$transfers[-1] %>% 
+    mean() %>% 
+    format_currency(accuracy = 1)
+  
+  forecast_data_input_gains <- forecast_data_for_plotting$gains[-1] %>% 
+    mean() %>% 
+    magrittr::raise_to_power(12) %>% 
+    magrittr::subtract(1) %>% 
+    scales::percent(accuracy = 0.1)
+  
   last_value <- forecast_data_for_plotting$value_after_gains %>% 
     last() %>% 
-    format_currency()
+    format_currency(accuracy = 1)
   
   four_percent_yearly <- forecast_data_for_plotting$value_after_gains %>% 
     last() %>% 
     magrittr::multiply_by(0.04) %>% 
-    format_currency()
+    format_currency(accuracy = 1)
   
   four_percent_monthly <- forecast_data_for_plotting$value_after_gains %>% 
     last() %>% 
     magrittr::multiply_by(0.04/12) %>% 
-    format_currency()
+    format_currency(accuracy = 1)
   
-  forecasted_stock_data_title <- HTML(glue::glue("Forecasted stock data<br>Final value = {last_value}<br>Four percent rule yearly before taxes = {four_percent_yearly}<br>Four percent rule monthly before taxes = {four_percent_monthly}"))
+  forecasted_stock_data_title <- HTML(glue::glue("Forecasted stock data<br>Mean input: Start value = {forecast_data_input_start}; Monthly transfers = {forecast_data_input_transfers}; Yearly gains = {forecast_data_input_gains}<br>Final value = {last_value}<br>Four percent rule yearly before taxes = {four_percent_yearly}<br>Four percent rule monthly before taxes = {four_percent_monthly}"))
   
   plot_ly(forecast_data_for_plotting,
           x = ~month,
