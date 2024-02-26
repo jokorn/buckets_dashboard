@@ -450,7 +450,6 @@ shinyServer(function(input, output, session) {
     # When we have the needed data, then forecast and plot the stock values 
     output$stock_forecast <- renderPlotly({
       
-      
       validate(
         need(is.numeric(input$stock_time), "Enter a numeric value for the number of years to forecast"),
         need(input$stock_time < 51, "Maximum number of years to forecast is 50")

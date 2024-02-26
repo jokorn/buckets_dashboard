@@ -212,6 +212,7 @@ shinyUI(fluidPage(
                      fluidPage(
                        fluidRow(
                          column(width = 3,
+                                h1("Work in progress!"),
                                 numericInput("stock_time", "Number of years to forecast", 10, min = 1, max = 50),
                                 numericInput("stock_start_value",
                                              HTML("Initial value of stocks before forecasting<br>(leave blank to use the historical data)"),
