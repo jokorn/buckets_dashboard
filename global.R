@@ -1154,7 +1154,7 @@ create_stock_data <- function(input_date_range_start,
                               stock_account,
                               stock_transfers,
                               stock_gains) {
-  browser() #Create logic to return NULL when input is incomplete
+  #browser() #Create logic to return NULL when input is incomplete
   stock_data <- tibble(posted = seq(input_date_range_start,
                                     input_date_range_end,
                                     by = "month")) %>% 
@@ -1235,7 +1235,7 @@ calculate_start_value <- function(input_start_value,
                                   input_date_range_start,
                                   input_date_range_end) {
   
-  browser()
+
   stock_data <- create_stock_data(input_date_range_start,
                                   input_date_range_end,
                                   stock_account,
