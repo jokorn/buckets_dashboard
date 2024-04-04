@@ -448,11 +448,14 @@ shinyServer(function(input, output, session) {
     })
     
     # When we have the needed data, then forecast and plot the stock values 
-    output$stock_forecast <- renderPlotly({
+    output$stock_forecast_fig <- renderPlotly({
       
       validate(
         need(is.numeric(input$stock_time), "Enter a numeric value for the number of years to forecast"),
-        need(input$stock_time < 51, "Maximum number of years to forecast is 50")
+        need(input$stock_time < 51, "Maximum number of years to forecast is 50"),
+        need(is.numeric(input$stock_nsims), "Enter a numeric value for the number of simulations"),
+        need(input$stock_nsims > 1, "Minimum number of simulations is 2"),
+        need(input$stock_nsims < 10001, "Maximum number of simulations is 10000")
       )
       
       stock_forecast_start_value <- calculate_start_value(input$stock_start_value,
@@ -488,8 +491,25 @@ shinyServer(function(input, output, session) {
                           stock_forecast_start_value,
                           stock_forecast_gains, 
                           stock_forecast_transfers,
-                          input$stock_mean_sample)
+                          input$stock_mean_sample,
+                          input$stock_nsims)
       
+    })
+    
+    # Now output the stock forecast figure to the UI - these 2 steps allows
+    # dynamic resizing of height depending on the number of subplots
+    ht <- reactive({
+      if (input$stock_mean_sample == "Sample") {
+        "1000px"
+      } else {
+        "400px"
+      }
+    }
+    )
+    
+    output$stock_forecast <- renderUI({
+      plotlyOutput("stock_forecast_fig",
+                   height = ht())
     })
     
     # Select the saving buckets from config.R in the drop down menu when the button is clicked

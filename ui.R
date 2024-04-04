@@ -208,11 +208,9 @@ shinyUI(fluidPage(
                        style = "margin: 0 0 0 5px;"),
                      plotlyOutput("forecast", height = height_sankey)),
             tabPanel("Stocks",
-                     
                      fluidPage(
                        fluidRow(
                          column(width = 3,
-                                h1("Work in progress!"),
                                 numericInput("stock_time", "Number of years to forecast", 10, min = 1, max = 50),
                                 numericInput("stock_start_value",
                                              HTML("Initial value of stocks before forecasting<br>(leave blank to use the historical data)"),
@@ -236,9 +234,15 @@ shinyUI(fluidPage(
                                 uiOutput("stock_transfers"),
                                 uiOutput("stock_gains"),
                                 radioButtons("stock_mean_sample",
-                                             label = "When forecasting based on historical data either sample or use mean values for monthly gains and transfers",
+                                             label = "When forecasting based on historical data either sample from historical data or use mean values for monthly gains and transfers",
                                              choices = c("Sample", "Mean"),
-                                             selected = c("Sample"))
+                                             selected = c("Sample")),
+                                numericInput("stock_nsims",
+                                             label = "Number of simulations when sampling using historical data",
+                                             value = 101,
+                                             min = 2,
+                                             max = 10000,
+                                             step = 1)
                          ),
                          column(width = 9,
                                 plotlyOutput("stock_historical")
@@ -246,7 +250,7 @@ shinyUI(fluidPage(
                        ),
                        fluidRow(
                          column(width = 12),
-                         plotlyOutput("stock_forecast")
+                         uiOutput("stock_forecast")
                         )
                        )
                      )

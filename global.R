@@ -1346,7 +1346,8 @@ plot_stock_forecast <- function(input_stock_time_years,
                                 stock_forecast_start_value,
                                 stock_forecast_gains, 
                                 stock_forecast_transfers,
-                                input_stock_mean_sample) {
+                                input_stock_mean_sample,
+                                input_stock_nsims) {
   
   accumulate_gains <- function(start_value,
                                transfers,
@@ -1364,23 +1365,94 @@ plot_stock_forecast <- function(input_stock_time_years,
            gains_losses = gains_losses)
   } 
   
-  forecast_data <- tibble(month = floor_date(today2(), "month"),
-                          start_value = stock_forecast_start_value,
-                          gains = 1,
-                          transfers = 0,
-                          total_value = start_value) %>% 
-    bind_rows(tibble(month = seq(from = floor_date(today2() %m+% months(1), "month"), by = "month", length.out = input_stock_time_years*12),
-                     start_value = stock_forecast_start_value,
-                     gains = safer_sample(stock_forecast_gains,
-                                          size = input_stock_time_years*12,
-                                          replace = TRUE),
-                     transfers = safer_sample(stock_forecast_transfers,
-                                              size = input_stock_time_years*12,
-                                              replace = TRUE)))
+  if (input_stock_mean_sample == "Sample") {
+    n_sims = input_stock_nsims
+    simulate_data <- tibble(sim_no = 1:n_sims) %>% 
+      mutate(data = replicate(n_sims, 
+                              tibble(month = floor_date(today2(), "month"),
+                                     start_value = stock_forecast_start_value,
+                                     gains = 1,
+                                     transfers = 0,
+                                     total_value = start_value) %>% 
+                                bind_rows(tibble(month = seq(from = floor_date(today2() %m+% months(1), "month"), by = "month", length.out = input_stock_time_years*12),
+                                                 start_value = stock_forecast_start_value,
+                                                 gains = safer_sample(stock_forecast_gains,
+                                                                      size = input_stock_time_years*12,
+                                                                      replace = TRUE),
+                                                 transfers = safer_sample(stock_forecast_transfers,
+                                                                          size = input_stock_time_years*12,
+                                                                          replace = TRUE))),
+                              simplify = FALSE)) %>% 
+      mutate(gains = map(data, ~accumulate_gains(.x$start_value %>% first(),
+                                                .x$transfers,
+                                                .x$gains))) %>% 
+      mutate(end_value = map_dbl(gains, ~ .x$value_after_gains %>% last())) 
     
-  value_after_gains <- accumulate_gains(start_value = stock_forecast_start_value,
-                                        transfers = forecast_data$transfers,
-                                        gains = forecast_data$gains)
+    forecast_data <- simulate_data %>% 
+      arrange(end_value) %>% 
+      pull(data) %>% 
+      pluck(floor(n_sims/2))
+    
+    value_after_gains <- simulate_data %>% 
+      arrange(end_value) %>% 
+      pull(gains) %>% 
+      pluck(floor(n_sims/2))
+    
+    fig_sim <- plot_ly(type = "scatter", mode = "lines")
+    
+    for (i in 1:nrow(simulate_data)) {
+      data_to_plot <- bind_cols(simulate_data$data[[i]], simulate_data$gains[[i]])
+      
+      fig_sim <- fig_sim %>% 
+        add_trace(NULL,
+                  y = data_to_plot$value_after_gains, x = data_to_plot$month,
+                  line = list(color = 'rgb(211, 211, 211)', width = 0.5),
+                  showlegend = FALSE)
+    }
+    
+    fig_sim <- fig_sim %>% 
+      add_trace(NULL,
+                y = value_after_gains$value_after_gains, x = forecast_data$month,
+                line = list(color = 'rgb(0, 0 , 0)', width = 3),
+                showlegend = FALSE) %>% 
+      layout(yaxis = list(title = ""),
+             xaxis = list(title = "")) %>% 
+      config(displayModeBar = TRUE,
+             displaylogo = FALSE,
+             modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                        "autoScale", "resetScale", "hoverClosestCartesian",
+                                        "hoverCompareCartesian", "lasso2d"),
+             toImageButtonOptions = list(height= NULL,
+                                         width= NULL)) %>% 
+      layout(separators = plotly_separators,
+             #title = "Simulated data",
+             annotations = list(x = tail(forecast_data$month, 1), y = last(value_after_gains$value_after_gains),
+                                text = format_currency(last(value_after_gains$value_after_gains)),
+                                yshift = 10,
+                                showarrow = F,
+                                font = list(size = 14)))
+    
+  } else {
+    forecast_data <- tibble(month = floor_date(today2(), "month"),
+                            start_value = stock_forecast_start_value,
+                            gains = 1,
+                            transfers = 0,
+                            total_value = start_value) %>% 
+      bind_rows(tibble(month = seq(from = floor_date(today2() %m+% months(1), "month"), by = "month", length.out = input_stock_time_years*12),
+                       start_value = stock_forecast_start_value,
+                       gains = safer_sample(stock_forecast_gains,
+                                            size = input_stock_time_years*12,
+                                            replace = TRUE),
+                       transfers = safer_sample(stock_forecast_transfers,
+                                                size = input_stock_time_years*12,
+                                                replace = TRUE)))
+    
+    value_after_gains <- accumulate_gains(start_value = stock_forecast_start_value,
+                                          transfers = forecast_data$transfers,
+                                          gains = forecast_data$gains)
+  }
+  
+  
   
   forecast_data_for_plotting <- forecast_data %>% 
     bind_cols(value_after_gains) %>% 
@@ -1416,15 +1488,20 @@ plot_stock_forecast <- function(input_stock_time_years,
     magrittr::multiply_by(0.04/12) %>% 
     format_currency(accuracy = 1)
   
-  forecasted_stock_data_title <- HTML(glue::glue("Forecasted stock data<br>Mean input: Start value = {forecast_data_input_start}; Monthly transfers = {forecast_data_input_transfers}; Yearly gains = {forecast_data_input_gains}<br>Final value = {last_value}<br>Four percent rule yearly before taxes = {four_percent_yearly}<br>Four percent rule monthly before taxes = {four_percent_monthly}"))
+  if (input_stock_mean_sample == "Sample") {
+    forecasted_stock_data_title <- HTML(glue::glue("Forecasted stock data using {n_sims} simulations<br>Showing the simulation with median end value<br>Mean input: Start value = {forecast_data_input_start}; Monthly transfers = {forecast_data_input_transfers}; Yearly gains = {forecast_data_input_gains}<br>Final value = {last_value}<br>Four percent rule yearly before taxes = {four_percent_yearly}<br>Four percent rule monthly before taxes = {four_percent_monthly}"))
+  } else {
+    forecasted_stock_data_title <- HTML(glue::glue("Forecasted stock data using means<br>Mean input: Start value = {forecast_data_input_start}; Monthly transfers = {forecast_data_input_transfers}; Yearly gains = {forecast_data_input_gains}<br>Final value = {last_value}<br>Four percent rule yearly before taxes = {four_percent_yearly}<br>Four percent rule monthly before taxes = {four_percent_monthly}"))
+  }
   
-  plot_ly(forecast_data_for_plotting,
-          x = ~month,
-          y = ~start_value,
-          type = "bar",
-          name = "Initial value",
-          hovertemplate = hovertemplate,
-          marker = list(color = "grey")) %>% 
+  fig_forecast <- plot_ly(forecast_data_for_plotting,
+                          height = if (input_stock_mean_sample == "Sample") 1000 else 400,
+                          x = ~month,
+                          y = ~start_value,
+                          type = "bar",
+                          name = "Initial value",
+                          hovertemplate = hovertemplate,
+                          marker = list(color = "grey")) %>% 
     add_trace(y = ~total_transfers,
               data = forecast_data_for_plotting,
               hovertemplate = hovertemplate,
@@ -1449,17 +1526,27 @@ plot_stock_forecast <- function(input_stock_time_years,
                         tickformat="%Y-%b"),
            legend = list(x = 0, y = 1.15),
            barmode = "relative",
-           title = forecasted_stock_data_title) %>% 
+           title = forecasted_stock_data_title,
+           separators = plotly_separators) %>% 
     config(displayModeBar = TRUE,
            displaylogo = FALSE,
            modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
                                       "autoScale", "resetScale", "hoverClosestCartesian",
                                       "hoverCompareCartesian", "lasso2d"),
            toImageButtonOptions = list(height= NULL,
-                                       width= NULL)) %>% 
-    layout(separators = plotly_separators)
+                                       width= NULL))
   
-  
+  if (input_stock_mean_sample == "Sample") {
+    return(plotly::subplot(fig_forecast, 
+                           plotly_empty(type = "scatter", mode = "markers"), 
+                           fig_sim %>% style(showlegend = FALSE), 
+                           nrows = 3,
+                           heights = c(0.4, 0.2, 0.4),
+                           margin = 0
+                           ))
+  } else {
+    return(fig_forecast)
+  }
     
   
 }
