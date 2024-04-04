@@ -10,7 +10,12 @@ shinyServer(function(input, output, session) {
     ))
   }
   
-    
+  # Input validation common
+  iv_common <- InputValidator$new()
+  iv_common$add_rule("date_range", ~ if (length(.) != 2) "Select both start and end month for the reports.")
+  iv_common$add_rule("date_range", ~ if (!checkDate(.)) "Enter valid start and end month for the reports.")
+  iv_common$enable()
+  
   # Create the income/expense report by calling the function defined in global.R
     output$expenses_pr_month <- DT::renderDataTable({
       # We need both start and end month to create the date filter
@@ -427,13 +432,21 @@ shinyServer(function(input, output, session) {
                                  title = "Select all the gains transactions"))
     })
     
+    # Validate the numeric inputs used in stock forecasting
+    iv_stock <- InputValidator$new()
+    iv_stock$add_rule("stock_time", compose_rules(sv_integer(), sv_between(1, 50)))
+    iv_stock$add_rule("stock_nsims", compose_rules(sv_integer(), sv_between(2, 1001)))
+    iv_stock$enable()
+    
+    
     # When all the data needed for forecasting stocks, then render the historical data
     output$stock_historical <- renderPlotly({
+      
+      req(iv_common$is_valid())
+      
       shiny:::req(input$stock_account,
                   input$stock_transfers,
                   input$stock_gains,
-                  input$date_range[[1]],
-                  input$date_range[[2]],
                   cancelOutput = TRUE)
       
       stock_data <- create_stock_data(input$date_range[1],
@@ -450,13 +463,8 @@ shinyServer(function(input, output, session) {
     # When we have the needed data, then forecast and plot the stock values 
     output$stock_forecast_fig <- renderPlotly({
       
-      validate(
-        need(is.numeric(input$stock_time), "Enter a numeric value for the number of years to forecast"),
-        need(input$stock_time < 51, "Maximum number of years to forecast is 50"),
-        need(is.numeric(input$stock_nsims), "Enter a numeric value for the number of simulations"),
-        need(input$stock_nsims > 1, "Minimum number of simulations is 2"),
-        need(input$stock_nsims < 10001, "Maximum number of simulations is 10000")
-      )
+      req(iv_common$is_valid(),
+          iv_stock$is_valid())
       
       stock_forecast_start_value <- calculate_start_value(input$stock_start_value,
                                                           input$stock_account,
@@ -481,18 +489,24 @@ shinyServer(function(input, output, session) {
                                                       input$date_range[[2]],
                                                       input$stock_mean_sample)
       
+      input_stock_nsims <- input$stock_nsims
+      input_stock_time <- input$stock_time
+      input_stock_mean_sample <- input$stock_mean_sample
       
       req(stock_forecast_start_value,
           stock_forecast_gains,
           stock_forecast_transfers,
+          input_stock_nsims,
+          input_stock_time,
+          input_stock_mean_sample,
           cancelOutput = TRUE)
       
-      plot_stock_forecast(input$stock_time,
+      plot_stock_forecast(input_stock_time,
                           stock_forecast_start_value,
                           stock_forecast_gains, 
                           stock_forecast_transfers,
-                          input$stock_mean_sample,
-                          input$stock_nsims)
+                          input_stock_mean_sample,
+                          input_stock_nsims)
       
     })
     

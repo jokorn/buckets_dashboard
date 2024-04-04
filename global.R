@@ -11,6 +11,7 @@ library(DT)
 library(janitor)
 library(plotly)
 library(checkmate)
+library(shinyvalidate)
 
 # Load the config file
 source("config.R")
@@ -1169,7 +1170,7 @@ create_stock_data <- function(input_date_range_start,
   
   stock_data <- all_transactions %>% 
     mutate(posted = floor_date(posted, "month")) %>% 
-    filter(account == stock_account) %>% 
+    filter(account %in% stock_account) %>% 
     mutate(category = case_when(memo %in% stock_transfers ~ "Transfer",
                                 memo %in% stock_gains ~ "Gains",
                                 TRUE ~ NA_character_)) %>% 
