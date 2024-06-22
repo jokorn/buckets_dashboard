@@ -403,7 +403,7 @@ shinyServer(function(input, output, session) {
       pickerInput(inputId = "stock_transfers",
                   label = NULL,
                   choices = all_transactions %>% 
-                    filter(account == input$stock_account) %>% 
+                    filter(account %in% input$stock_account) %>% 
                     distinct(memo) %>% 
                     arrange(memo) %>% 
                     pull(memo),
@@ -420,7 +420,7 @@ shinyServer(function(input, output, session) {
       pickerInput(inputId = "stock_gains",
                   label = NULL,
                   choices = all_transactions %>% 
-                    filter(account == input$stock_account) %>% 
+                    filter(account %in% input$stock_account) %>% 
                     distinct(memo) %>% 
                     arrange(memo) %>% 
                     pull(memo),
