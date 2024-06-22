@@ -253,7 +253,7 @@ assets_liabilities <- all_accounts %>%
   mutate(account_category = if_else(balance < 0, "Liabilities", "Assets"))
 
 
-# Create data to use with forecasting - includes ALL transactions onbudget and offbudget
+# Create data to use with forecasting - includes ALL transactions on-budget and off-budget
 all_transactions <- acc_trans %>%
   left_join(transactions %>% select(bucket_id, account_trans_id),
             by = c("id" = "account_trans_id")) %>%
@@ -607,7 +607,7 @@ plot_net_wealth <- function(assets_liabilities,
 savings_rate <- function(monthly,
                          input_date_range,
                          input_saving_buckets_filter_choices) {
-  
+  browser()
   # Separate into Income, Savings (based on buckets in config.R) and Expenses
   prepare_savings_rate <- monthly %>% 
     filter(month >= input_date_range[1],
@@ -1173,10 +1173,11 @@ create_stock_data <- function(input_date_range_start,
     filter(account %in% stock_account) %>% 
     mutate(category = case_when(memo %in% stock_transfers ~ "Transfer",
                                 memo %in% stock_gains ~ "Gains",
-                                TRUE ~ NA_character_)) %>% 
+                                TRUE ~ "Ignore")) %>% 
     mutate(category = factor(category, 
                              levels = c("Transfer",
-                                        "Gains"))) %>% 
+                                        "Gains",
+                                        "Ignore"))) %>% 
     group_by(posted, category) %>% 
     summarize(Amount = sum(amount)/100, 
               .groups = "drop") %>% 
@@ -1190,10 +1191,11 @@ create_stock_data <- function(input_date_range_start,
     pivot_wider(id_cols = "posted",
                 names_from = "category", 
                 values_from = "Amount") %>% 
-    mutate(Flow = Gains + Transfer) %>% 
+    mutate(Flow = Gains + Transfer + Ignore) %>% 
     arrange(posted) %>% 
     mutate(Total_end = cumsum(Flow)) %>% 
     mutate(Total_gains = cumsum(Gains)) %>% 
+    mutate(Total_ignore = cumsum(Ignore)) %>% 
     mutate(Total_transfers = cumsum(Transfer)) %>% 
     mutate(Total_transfers_previous_months = Total_transfers - Transfer) %>% 
     mutate(Gains_rate = (Gains / (Total_end - Gains))) %>% 
@@ -1212,11 +1214,16 @@ plot_stock_historical <- function(stock_data) {
   
   plot_ly(stock_data,
           x = ~posted,
-          y = ~Total_transfers_previous_months,
+          y = ~Total_ignore,
           type = "bar",
-          name = "Total transfers previous months",
+          name = "Not gains or transfers, e.g. opening balance",
           hovertemplate = hovertemplate,
           marker = list(color = "grey")) %>% 
+    add_trace(y = ~Total_transfers_previous_months,
+              data = stock_data,
+              hovertemplate = hovertemplate,
+              name = "Total transfers previous months",
+              marker = list(color = "darkgrey")) %>% 
     add_trace(y = ~Transfer,
               data = stock_data,
               hovertemplate = hovertemplate,
