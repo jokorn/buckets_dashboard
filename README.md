@@ -14,14 +14,18 @@ No extensive testing have been performed. Developed for personal use. Expect bug
 - Open RStudio and install the packages from the "library" calls in the file "global.R":
 ```r
 install.packages(c("tidyverse",
+                   "lubridate",
                    "DBI",
                    "RSQLite",
+                   "dplyr",
                    "shiny",
                    "shinyWidgets",
                    "shinyjs",
                    "DT",
                    "janitor",
-                   "plotly"))
+                   "plotly",
+                   "checkmate",
+                   "shinyvalidate"))
 ```
 - Some of these packages may fail to install as they are dependent on external libraries. Please look trough the error messages in RStudio in case the installation of some of the packages fail as there are often suggestions on how to solve the issue. The below external libraries must be installed outside of R. This list can change as R packages are updated. Solutions differ depending on the OS, but try to install the following:
 
