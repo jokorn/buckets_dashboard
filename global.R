@@ -606,20 +606,42 @@ plot_net_wealth <- function(assets_liabilities,
 
 savings_rate <- function(monthly,
                          input_date_range,
-                         input_saving_buckets_filter_choices) {
-  browser()
-  # Separate into Income, Savings (based on buckets in config.R) and Expenses
+                         input_saving_buckets_filter_choices,
+                         input_pension_account,
+                         input_pension_savings) {
+  
+  # Prepare the pension contributions to be added to the budget transactions
+  if (!all(test_character(input_pension_account, min.chars = 1),
+           test_character(input_pension_savings, min.chars = 1))) {
+    pension_savings <- tibble()
+  } else {
+    pension_savings <- all_transactions %>% 
+      mutate(month = floor_date(posted, "month")) %>% 
+      filter(account %in% input_pension_account) %>% 
+      filter(memo %in% input_pension_savings) %>% 
+      mutate(savings_cat = "Pension") %>% 
+      mutate(amount = amount/100) %>% 
+      select(savings_cat, month, amount) %>% 
+      filter(month >= input_date_range[1],
+             month <= input_date_range[2])
+  }
+  
+  # Separate into Income, Pension, Savings (based on buckets in config.R) 
+  # and Expenses
   prepare_savings_rate <- monthly %>% 
     filter(month >= input_date_range[1],
            month <= input_date_range[2]) %>% 
     mutate(savings_cat = case_when(bucket_group == "Income" ~ "Income",
                                    category %in% input_saving_buckets_filter_choices ~ "Savings",
                                    TRUE ~ "Expenses")) %>%
+    # Add the pension savings
+    bind_rows(pension_savings) %>% 
     # Calculate per month and make wide
     group_by(month, savings_cat) %>% 
     summarize(amount = sum(amount)) %>%
     ungroup() %>% 
     mutate(savings_cat = factor(savings_cat, levels = c("Income",
+                                                        "Pension",
                                                         "Expenses",
                                                         "Savings"))) %>% 
     tidyr::complete(month, savings_cat, fill = list(amount = 0)) %>% 
@@ -629,67 +651,60 @@ savings_rate <- function(monthly,
                 id_cols = month) %>%
     mutate(Savings = Savings * -1) %>% 
     mutate(not_spend = Income + Expenses - Savings) %>%
+    # Align months with the rest of the Dahsboard
+    mutate(month = strftime(month, "%Y-%b")) %>% 
+    # Add a totals row
+    janitor::adorn_totals() %>% 
+    # Calculate the different ratios
     mutate(percent_notspend = not_spend / Income,
            percent_savings = Savings / Income,
-           savings_notspend = not_spend+Savings,
-           percent_savings_and_notspend = savings_notspend / Income)
+           percent_pension = Pension / (Income + Pension),
+           percent_savings_and_pension = (Pension + Savings) / (Income + Pension),
+           savings_pension = Pension + Savings,
+           savings_notspend = not_spend + Savings,
+           savings_notspend_pension = savings_notspend + Pension,
+           percent_savings_and_notspend = savings_notspend / Income,
+           percent_savings_pension_notspend = (savings_notspend + Pension) / (Income + Pension))
   
-  # Calculate totals based on the above
-  total_savings_rate <- summarise(prepare_savings_rate,
-                                  month = "Total",
-                                  Income = sum(Income),
-                                  Expenses = sum(Expenses),
-                                  "Saving buckets" = sum(Savings)) %>% 
-    mutate("Not spend" = Income + Expenses - `Saving buckets`,
-           "Not spend + Saving buckets" = `Not spend` + `Saving buckets`,
-           "Proportion Not spend" = `Not spend` / Income,
-           "Proportion Saving buckets" = `Saving buckets` / Income,
-           "Proportion Not spend + Saving buckets" = `Not spend + Saving buckets` / Income) %>% 
-    # Format the columns as currency and percent
-    mutate(Income = format_currency(Income),
-           Expenses = format_currency(Expenses),
-           `Saving buckets` = format_currency(`Saving buckets`),
-           `Not spend + Saving buckets` = format_currency(`Not spend + Saving buckets`),
-           `Not spend` = format_currency(`Not spend`)) %>% 
-    mutate(`Proportion Not spend` = scales::percent(`Proportion Not spend`, accuracy = 0.1),
-           `Proportion Saving buckets` = scales::percent(`Proportion Saving buckets`, accuracy = 0.1),
-           `Proportion Not spend + Saving buckets` = scales::percent(`Proportion Not spend + Saving buckets`, accuracy = 0.1)) %>% 
+  final_savings_rate <- prepare_savings_rate %>% 
+    # Format columns as currency and percent
+    mutate_at(c("Income",
+                "Pension",
+                "Expenses",
+                "Savings",
+                "savings_pension",
+                "savings_notspend",
+                "savings_notspend_pension",
+                "not_spend"),
+              format_currency) %>% 
+    mutate_at(c("percent_notspend",
+                "percent_savings",
+                "percent_savings_and_notspend",
+                "percent_pension",
+                "percent_savings_and_pension",
+                "percent_savings_pension_notspend"),
+               ~scales::percent(.x, accuracy = 0.1)) %>% 
+    # Remove expenses and order the rows
+    select(month,
+           "Disposable income" = "Income",
+           Expenses,
+           "Pension" = Pension,
+           "Saving buckets" = Savings,
+           "Not spend" = not_spend,
+           "Pension + Saving buckets" = savings_pension,
+           "Not spend + Saving buckets" = savings_notspend,
+           "Not spend + Saving buckets + Pension" = savings_notspend_pension,
+           "Proportion Pension to Disposable Income + Pension" = percent_pension,
+           "Proportion Saving buckets to Disposable Income" = percent_savings,
+           "Proportion Not spend to Disposable Income" = percent_notspend,
+           "Proportion Not spend + Saving buckets to Disposable Income" = percent_savings_and_notspend,
+           "Proportion Not spend + Saving buckets + Pension to Disposable Income + Pension" = percent_savings_pension_notspend,
+           "Proportion Saving buckets + Pension to Disposable Income + Pension" = percent_savings_and_pension) %>% 
     # Trick to make wide with regards to months
     column_to_rownames("month") %>% 
     t() %>% 
     as.data.frame() %>%
     rownames_to_column(" ")
-    
-  
-  final_savings_rate <- prepare_savings_rate %>% 
-    # Format columns as currency and percent
-    mutate(Income = format_currency(Income),
-           Expenses = format_currency(Expenses),
-           Savings = format_currency(Savings),
-           savings_notspend = format_currency(savings_notspend),
-           not_spend = format_currency(not_spend)) %>% 
-    mutate(percent_notspend = scales::percent(percent_notspend, accuracy = 0.1),
-           percent_savings = scales::percent(percent_savings, accuracy = 0.1),
-           percent_savings_and_notspend = scales::percent(percent_savings_and_notspend, accuracy = 0.1)) %>% 
-    # Align months with the rest of the Dahsboard
-    mutate(month = strftime(month, "%Y-%b")) %>% 
-    # Remove expenses and order the rows
-    select(month,
-           Income,
-           Expenses,
-           "Saving buckets" = Savings,
-           "Not spend" = not_spend,
-           "Not spend + Saving buckets" = savings_notspend,
-           "Proportion Saving buckets" = percent_savings,
-           "Proportion Not spend" = percent_notspend,
-           "Proportion Not spend + Saving buckets" = percent_savings_and_notspend) %>% 
-    # Trick to make wide with regards to months
-    column_to_rownames("month") %>% 
-    t() %>% 
-    as.data.frame() %>%
-    rownames_to_column(" ") %>% 
-    # Add the "Total" column 
-    left_join(total_savings_rate, by = " ")
   
   # Create the datatable
   final_savings_rate %>% 

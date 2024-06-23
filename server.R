@@ -284,6 +284,24 @@ shinyServer(function(input, output, session) {
     }
     )
     
+    # Select the transactions contributing to pension savings rate
+    output$pension_savings <- renderUI({
+      shiny:::req(input$pension_account)
+      pickerInput(inputId = "pension_savings",
+                  label = NULL,
+                  choices = all_transactions %>% 
+                    filter(account %in% input$pension_account) %>% 
+                    distinct(memo) %>% 
+                    arrange(memo) %>% 
+                    pull(memo),
+                  multiple = TRUE,
+                  width = "fit",
+                  options = list(`actions-box` = TRUE,
+                                 header = "Pension savings",
+                                 `selected-text-format` = "static",
+                                 title = "Select all the transactions that should contribute to pension savings"))
+    })
+    
     # Display the savings rate table
     output$savings_rate_table <- DT::renderDataTable({
       # We need both start and end month to create the date filter
@@ -300,7 +318,9 @@ shinyServer(function(input, output, session) {
       savings_rate(monthly %>% filter(category %in% c(input$income_buckets_filter_choices,
                                                       input$expense_buckets_filter_choices)),
                    input$date_range,
-                   input$saving_buckets_filter_choices)
+                   input$saving_buckets_filter_choices,
+                   input$pension_account,
+                   input$pension_savings)
     })
     
     # Create the Bucket Transactions plot
