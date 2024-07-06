@@ -101,15 +101,18 @@ buckets_ready <- buckets %>%
   arrange(group_id) %>% 
   mutate(bucket_group = ifelse(kicked == 1, "Kicked", bucket_group)) %>% 
   mutate(category = ifelse(kicked == 1, str_c(category, " (kicked)"), category)) %>% 
-  mutate(group_id = ifelse(bucket_group == "Kicked", 9999, group_id)) %>% 
-  mutate(bucket_group = fct_reorder(bucket_group, group_id))
+  mutate(group_id = ifelse(bucket_group == "Kicked", "Kicked", group_id)) %>% 
+  mutate(bucket_group = fct_inorder(bucket_group)) %>% 
+  mutate(bucket_group = fct_relevel(bucket_group, "Kicked", after = Inf)) %>% 
+  mutate(bucket_group = fct_expand(bucket_group, "Income", after = 0))
 
 # Prepare income
 income_ready <- income %>% 
   filter(general_cat == "income") %>% 
   mutate(bucket_group = "Income",
-         group_id = -99,
+         group_id = fct("Income"),
          ranking = memo) %>% 
+  mutate(bucket_group = fct_expand(bucket_group, levels(buckets_ready$bucket_group))) %>% 
   left_join(acc_balance %>% select(account = name, id),
             by = c("account_id" = "id")) %>% 
   select(account,
@@ -147,10 +150,11 @@ everything <- bind_rows(income_ready,
          bucket_group = coalesce(bucket_group_new, bucket_group),
          group_id = coalesce(group_id_new, group_id),
          ranking = coalesce(ranking_new, ranking)) %>% 
+  # Make Income come first
+  mutate(bucket_group = fct_relevel(bucket_group, "Income")) %>% 
   # Ensure sorting
   arrange(group_id, ranking) %>% 
-  mutate(category = factor(category) %>% fct_inorder) %>% 
-  mutate(bucket_group = fct_reorder(bucket_group, group_id))
+  mutate(category = factor(category) %>% fct_inorder)
 
 # Buckets summary pr month
 # Prepare monthly sum per bucket
@@ -651,7 +655,7 @@ savings_rate <- function(monthly,
                 id_cols = month) %>%
     mutate(Savings = Savings * -1) %>% 
     mutate(not_spend = Income + Expenses - Savings) %>%
-    # Align months with the rest of the Dahsboard
+    # Align month naming with the rest of the Dashboard
     mutate(month = strftime(month, "%Y-%b")) %>% 
     # Add a totals row
     janitor::adorn_totals() %>% 
