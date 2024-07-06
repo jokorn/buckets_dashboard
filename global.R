@@ -159,7 +159,12 @@ everything <- bind_rows(income_ready,
   mutate(bucket_group = fct_relevel(bucket_group, "Income")) %>% 
   # Ensure sorting
   arrange(group_id, ranking) %>% 
-  mutate(category = factor(category) %>% fct_inorder)
+  mutate(category = factor(category) %>% fct_inorder) %>% 
+  # Add empty payee column if it doesn't exists
+  bind_rows(tibble(payee = character())) %>% 
+  # Convert all empty payees to NA to avoid mix of NA and empty strings
+  # for transactions with out payees
+  mutate(payee = if_else(payee == "", NA_character_, payee))
 
 # Buckets summary pr month
 # Prepare monthly sum per bucket
@@ -485,6 +490,7 @@ transactions_table <- function(data_source,
            "Bucket Group" = bucket_group,
            "Bucket" = category,
            "Amount" = amount,
+           "Payee" = payee,
            "Memo" = memo)
   
   # Create the datatable container to modify the footer
