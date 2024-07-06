@@ -115,27 +115,32 @@ income_ready <- income %>%
   mutate(bucket_group = fct_expand(bucket_group, levels(buckets_ready$bucket_group))) %>% 
   left_join(acc_balance %>% select(account = name, id),
             by = c("account_id" = "id")) %>% 
-  select(account,
-         bucket_group,
-         category = memo,
-         posted,
-         amount,
-         group_id,
-         ranking)
+  rename(c(category = memo)) %>% 
+  select(any_of(c("account",
+                  "bucket_group",
+                  "category",
+                  "posted",
+                  "amount",
+                  "group_id",
+                  "ranking")))
 
 # Prepare expenses
 expenses_ready <- transactions %>% 
   filter(!is.na(account_trans_id)) %>% 
-  left_join(acc_trans %>% select(id, account_id),
-            by = c("account_trans_id" = "id")) %>% 
+  left_join(acc_trans %>% select(any_of(c("id", "account_id", "payee", "memo"))),
+            by = c("account_trans_id" = "id"),
+            suffix = c("", ".new")) %>% 
   left_join(acc_balance %>% select(account = name, id),
             by = c("account_id" = "id")) %>% 
   # Use memo field from transactions where possible and not from bucket transaction
-  left_join(acc_trans %>% select(account_trans_id = id,
-                                 memo.new = memo),
-            by = "account_trans_id") %>% 
   mutate(memo = coalesce(memo.new, memo)) %>% 
-  select(account, id, posted, bucket_id, amount, memo) %>% 
+  select(any_of(c("account",
+                  "id",
+                  "posted",
+                  "bucket_id",
+                  "amount",
+                  "memo",
+                  "payee"))) %>% 
   left_join(buckets_ready,
             by = "bucket_id")
 
