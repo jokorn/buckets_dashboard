@@ -108,17 +108,29 @@ buckets_ready <- buckets %>%
 
 # Prepare income
 income_ready <- income %>% 
+  # Add empty payee column if it doesn't exists
+  bind_rows(tibble(payee = character())) %>% 
+  # Convert all empty payees to NA to avoid mix of NA and empty strings
+  # for transactions with out payees
+  mutate(payee = if_else(payee == "", NA_character_, payee)) %>% 
+  # Select only income transactions
   filter(general_cat == "income") %>% 
   mutate(bucket_group = "Income",
          group_id = fct("Income"),
          ranking = memo) %>% 
+  # Include all buckets in data as levels
   mutate(bucket_group = fct_expand(bucket_group, levels(buckets_ready$bucket_group))) %>% 
+  # Add account information
   left_join(acc_balance %>% select(account = name, id),
             by = c("account_id" = "id")) %>% 
-  rename(c(category = memo)) %>% 
+  # Create a "fake" bucket based on 1) payee; 2) memo
+  mutate(category = coalesce(payee, memo)) %>% 
+  # Keep only relevant columns
   select(any_of(c("account",
                   "bucket_group",
                   "category",
+                  "payee",
+                  "memo",
                   "posted",
                   "amount",
                   "group_id",
@@ -126,7 +138,9 @@ income_ready <- income %>%
 
 # Prepare expenses
 expenses_ready <- transactions %>% 
+  # Keep only relevant transactions
   filter(!is.na(account_trans_id)) %>% 
+  # Add transaction information
   left_join(acc_trans %>% select(any_of(c("id", "account_id", "payee", "memo"))),
             by = c("account_trans_id" = "id"),
             suffix = c("", ".new")) %>% 
@@ -134,6 +148,12 @@ expenses_ready <- transactions %>%
             by = c("account_id" = "id")) %>% 
   # Use memo field from transactions where possible and not from bucket transaction
   mutate(memo = coalesce(memo.new, memo)) %>% 
+  # Add empty payee column if it doesn't exists
+  bind_rows(tibble(payee = character())) %>% 
+  # Convert all empty payees to NA to avoid mix of NA and empty strings
+  # for transactions with out payees
+  mutate(payee = if_else(payee == "", NA_character_, payee)) %>%
+  # Keep only relevant columns
   select(any_of(c("account",
                   "id",
                   "posted",
@@ -141,6 +161,7 @@ expenses_ready <- transactions %>%
                   "amount",
                   "memo",
                   "payee"))) %>% 
+  # Add bucket information
   left_join(buckets_ready,
             by = "bucket_id")
 
@@ -159,12 +180,7 @@ everything <- bind_rows(income_ready,
   mutate(bucket_group = fct_relevel(bucket_group, "Income")) %>% 
   # Ensure sorting
   arrange(group_id, ranking) %>% 
-  mutate(category = factor(category) %>% fct_inorder) %>% 
-  # Add empty payee column if it doesn't exists
-  bind_rows(tibble(payee = character())) %>% 
-  # Convert all empty payees to NA to avoid mix of NA and empty strings
-  # for transactions with out payees
-  mutate(payee = if_else(payee == "", NA_character_, payee))
+  mutate(category = factor(category) %>% fct_inorder)
 
 # Buckets summary pr month
 # Prepare monthly sum per bucket
