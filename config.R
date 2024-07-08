@@ -16,8 +16,8 @@ plotly_separators <- ".," #From documentation: Sets the decimal and thousand sep
 # Category changes / override Bucket's setup (seldom needed)
 # Can e.g. be used to change an expense bucket to an income bucket
 manual_categorization <- tribble(
-  ~bucket_group, ~category, ~bucket_group_new, ~category_new, ~group_id_new, ~ranking_new, #group_id can be difficult to find but is -99 for Income
-  "Old_bucket_group", "Old_category_name", "New_bucket_group_eg_Income", "New_category_name", -99, "Sorting_within_new_group_eg_use_name_for_alphabetical_sorting" #Add more as needed
+  ~bucket_group, ~category, ~bucket_group_new, ~category_new, ~group_id_new, ~ranking_new,
+  "Old_bucket_group", "Old_category_name", "New_bucket_group_eg_Income", "New_category_name", "New_group_id_eg_Income", "Sorting_within_new_group_eg_use_name_for_alphabetical_sorting"
 )
 
 # Specify Buckets that are actually transfers to off budget saving accounts
