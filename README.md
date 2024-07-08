@@ -1,14 +1,23 @@
 # Buckets Dashboard
+
+## Supported versions of Budget With Buckets
+
+Starting from `commit 75e8e44`, the Buckets Dashboard is being developed for Buckets Beta v0.76.0. 
+If you are using an older version of Buckets and you experience problems with backwards compatibility, please revert to a commit prior to `commit 75e8e44`. 
+Some of the new functions in the Buckets Dashboard will only be available when using a version of Buckets that includes the `Payee` function.
+
+## Introduction
+
 A Shiny app developed in R with reports for budgeting with the Buckets application (https://www.budgetwithbuckets.com).
 
 Reads data directly from the .buckets file (sqlite format) and shows reports based on this.
 
 The reports resemble those available in YNAB.
 
-No extensive testing have been performed. Developed for personal use. Expect bugs.
+No extensive testing have been performed. Developed for personal use. Expect bugs (and kindly report bugs in GitHub when you do experience them).
 
-# How to install
-- Install R. This was developed in R version 4.1.2 (64-bit) running under Debian GNU/Linux 10 (buster) and with Buckets Beta v0.63.2.
+## How to install
+- Install R. This was developed in R version 4.1.2 (64-bit) running under Debian GNU/Linux 10 (buster) and with Buckets Beta v0.76.0.
 - Install RStudio.
 - Download and unzip this repository or clone it using git.
 - Open RStudio and install the packages from the "library" calls in the file "global.R":
