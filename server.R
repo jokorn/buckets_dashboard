@@ -465,8 +465,6 @@ shinyServer(function(input, output, session) {
       req(iv_common$is_valid())
       
       shiny:::req(input$stock_account,
-                  input$stock_transfers,
-                  input$stock_gains,
                   cancelOutput = TRUE)
       
       stock_data <- create_stock_data(input$date_range[1],

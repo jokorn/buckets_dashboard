@@ -1208,10 +1208,16 @@ create_stock_data <- function(input_date_range_start,
                               stock_transfers,
                               stock_gains) {
 
-  if (!all(test_character(stock_account, min.chars = 1),
-           test_character(stock_transfers, min.chars = 1),
-           test_character(stock_gains, min.chars = 1))) {
+  if (!test_character(stock_account, min.chars = 1)){
     return(NULL)
+  }
+  
+  if (!test_character(stock_transfers, min.chars = 1)){
+    stock_transfers = ""
+  }
+  
+  if (!test_character(stock_gains, min.chars = 1)){
+    stock_gains = ""
   }
   
   stock_data <- all_transactions %>% 
@@ -1245,9 +1251,10 @@ create_stock_data <- function(input_date_range_start,
     mutate(Total_transfers = cumsum(Transfer)) %>% 
     mutate(Total_transfers_previous_months = Total_transfers - Transfer) %>% 
     mutate(Gains_rate = (Gains / (Total_end - Gains))) %>% 
-    # Find the first month with gains or transfers and remove all preceding months
+    # Find the first month with gains, transfers or ignored and remove all preceding months
     filter(row_number() >= min(row_number()[Transfer != 0],
-                               row_number()[Gains != 0])) %>% 
+                               row_number()[Gains != 0],
+                               row_number()[Ignore != 0])) %>% 
     # Filter months based on input date range
     filter(posted >= input_date_range_start,
            posted <= input_date_range_end)
