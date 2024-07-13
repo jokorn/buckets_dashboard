@@ -68,7 +68,9 @@ error_position_css <- glue::glue(".shiny-output-error-validation {{
               height: 0px !important;
               }}")
 
-form_group_css <- ".form-group {margin-bottom: 5px;}"
+form_group_css <- ".form-group {margin-bottom: 5px; margin-right: 5px;}"
+
+btn_css <- ".action-button {margin-bottom: 5px; margin-right: 5px;}"
 
 # Connect to database and the relevant tables
 con <- dbConnect(SQLite(), path_to_buckets)

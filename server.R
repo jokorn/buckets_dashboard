@@ -149,6 +149,13 @@ shinyServer(function(input, output, session) {
     }
     )
     
+    # Clear all selections in the income/expense report table when the button
+    # is clicked
+    observeEvent(input$clear_selection, {
+      selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
+    }
+    )
+    
     # Create the Net Wealth chart
     output$net_wealth <- renderPlotly({
       # Again we need two dates to create the date filter
@@ -275,14 +282,6 @@ shinyServer(function(input, output, session) {
                                            width= NULL)) %>% 
         layout(separators = plotly_separators)
     })
-    
-    # Select all accounts in the drop down menu when the button is clicked
-    observeEvent(input$select_all_accounts, {
-      updateCheckboxGroupInput(inputId="netwealth_account_filter_choices", 
-                               choices = unique(assets_liabilities$name),
-                               selected = unique(assets_liabilities$name))
-    }
-    )
     
     # Select the transactions contributing to pension savings rate
     output$pension_savings <- renderUI({
@@ -419,7 +418,6 @@ shinyServer(function(input, output, session) {
     # When a "stock" account has been selected render the input UI for selecting
     # transfers and gains transactions
     output$stock_transfers <- renderUI({
-      shiny:::req(input$stock_account)
       pickerInput(inputId = "stock_transfers",
                   label = NULL,
                   choices = all_transactions %>% 
@@ -436,7 +434,6 @@ shinyServer(function(input, output, session) {
     })
     
     output$stock_gains <- renderUI({
-      shiny:::req(input$stock_account)
       pickerInput(inputId = "stock_gains",
                   label = NULL,
                   choices = all_transactions %>% 
@@ -458,14 +455,16 @@ shinyServer(function(input, output, session) {
     iv_stock$add_rule("stock_nsims", compose_rules(sv_integer(), sv_between(2, 1001)))
     iv_stock$enable()
     
-    
     # When all the data needed for forecasting stocks, then render the historical data
     output$stock_historical <- renderPlotly({
       
       req(iv_common$is_valid())
       
-      shiny:::req(input$stock_account,
-                  cancelOutput = TRUE)
+      shiny::validate(
+        need(input$stock_account,
+             "Select at least one stock account to display historical stock data."
+        )
+      )
       
       stock_data <- create_stock_data(input$date_range[1],
                                       input$date_range[2],

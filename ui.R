@@ -8,12 +8,12 @@ shinyUI(fluidPage(
       tags$style( 
           str_c(zoom_reverse, #Reverse zoom for plotly graphs to avoid glitches and make hover work
                 zoom_css, # Adjust zoom to fit 1 year without horizontal scrolling
-                error_position_css,
-                form_group_css) #Manually adjust position of validation messages
+                error_position_css, #Manually adjust position of validation messages
+                form_group_css, 
+                btn_css) 
           
       )
     ),
-    
     
     # Application title
     titlePanel(tagList(
@@ -25,8 +25,10 @@ shinyUI(fluidPage(
     # Sidebar with input controls / filters
     sidebarLayout(
         sidebarPanel(width = 2,
-            airDatepickerInput("date_range",
-                               "Select months for the reports",
+                     p(strong("Select months for the reports")),
+            # Allow multiple inputs on same row if there is space
+            div(style = "display: flex; flex-wrap: wrap;",
+              airDatepickerInput("date_range",
                                autoClose = TRUE,
                                update_on = "change",
                                separator = " to ",
@@ -41,22 +43,21 @@ shinyUI(fluidPage(
                                minDate = min(monthly$month),
                                maxDate = max(monthly$month)),
             actionButton(inputId = "select_all_dates", 
-                         label = "All Months",
-                         style="margin-bottom: 5px;"),
+                         label = "All Months"),
             actionButton(inputId = "select_current_month", 
-                         label = "Current Month",
-                         style="margin-bottom: 5px;"),
-            br(),
+                         label = "Current Month"),
             actionButton(inputId = "select_current_year", 
-                         label = "Current Year",
-                         style="margin-bottom: 5px;"),
+                         label = "Current Year")
+                     ), #Div end
             # Input controls for filtering Buckets
             p(strong("Select buckets for the reports"),
               style="margin-bottom: 5px;"),
-            actionButton(inputId = "select_all_buckets", 
+            # Allow multiple inputs on same row
+            div(style = "display: flex; flex-wrap: wrap;",
+              actionButton(inputId = "select_all_buckets", 
                          label = "Show All Buckets",
-                         style="margin-bottom: 5px;"),
-        pickerInput(inputId = "income_buckets_filter_choices",
+                         style = "margin-bottom: 5px;"),
+              pickerInput(inputId = "income_buckets_filter_choices",
                     label = NULL,
                     selected = unlist(income_named_list, use.names = FALSE),
                     choices = income_named_list,
@@ -65,9 +66,10 @@ shinyUI(fluidPage(
                     options = list(`actions-box` = TRUE,
                                    header = "Income Buckets",
                                    `selected-text-format` = "static",
-                                   title = "Select Income Buckets")
-        ),
-        pickerInput(inputId = "expense_buckets_filter_choices",
+                                   title = "Select Income Buckets"
+                    )
+              ),
+              pickerInput(inputId = "expense_buckets_filter_choices",
                     label = NULL,
                     selected = unlist(expenses_named_list, use.names = FALSE),
                     choices = expenses_named_list,
@@ -77,26 +79,26 @@ shinyUI(fluidPage(
                                    header = "Expense Buckets",
                                    `selected-text-format` = "static",
                                    title = "Select Expense Buckets")
-        ),
-        actionButton(inputId = "deselect_kicked", 
+              ),
+              actionButton(inputId = "deselect_kicked", 
                      label = "Deselect Kicked Expenses",
-                     style="margin-bottom: 5px;"),
-        p(strong("Income/Expense View"),
-          style="margin-bottom: 5px;"),
-        materialSwitch("toggle_report_view",
-                       "Bucket Groups Only"),
-        materialSwitch("toggle_zero_totals",
-                       "Show Buckets With All Zeros"),
-        actionButton(inputId = "clear_selection", 
-                     label = "Clear Selection",
-                     style="margin-bottom: 5px;"),
-        
+                     style="margin-bottom: 5px;")
+            ), #div end
+        # Input controls for the Income/Expense and Transactions reports
+            p(strong("Income/Expense and Transactions")),
+            materialSwitch("toggle_report_view",
+                           "Only Bucket Groups",
+                           width = "auto"),
+            materialSwitch("toggle_zero_totals",
+                           "Show Buckets With All Zeros",
+                           width = "auto"),
+            actionButton(inputId = "clear_selection", 
+                         label = "Clear Selection"),
         # Input controls for filtering accounts in net wealth report
-        p(strong("Net Wealth View"),
+        p(strong("Net Wealth and Forecast"),
           style="margin-bottom: 5px;"),
-        actionButton(inputId = "select_all_accounts", 
-                     label = "Show All Accounts",
-                     style="margin-bottom: 5px;"),
+        # Allow multiple inputs on same row if there is space
+        div(style = "display: flex; flex-wrap: wrap;",
         pickerInput(inputId = "netwealth_account_filter_choices",
                     label = NULL,
                     selected = unlist(accounts_named_list, use.names = FALSE),
@@ -107,14 +109,12 @@ shinyUI(fluidPage(
                                    header = "Accounts",
                                    `selected-text-format` = "static",
                                    title = "Select Accounts")
-        ),
-        p(strong("Bucket Balances"),
-          style="margin-bottom: 5px"),
-        materialSwitch("bucket_balances_labels", 
-                       "Show value labels",
-                       value = TRUE),
-        p(strong("Savings Rate and Sankey Diagram"),
+        )
+        ), #div end
+        p(strong("Savings Buckets"),
           style="margin-bottom: 5px;"),
+        # Allow multiple inputs on same row if there is space
+        div(style = "display: flex; flex-wrap: wrap;",
         actionButton(inputId = "select_config_saving_buckets", 
                      label = "Select Saving Buckets From \"config.R\"",
                      style="margin-bottom: 5px;"),
@@ -129,19 +129,38 @@ shinyUI(fluidPage(
                                    `selected-text-format` = "static",
                                    title = "Select Saving Buckets")
                     )
-        ),
+        ), #div end
+        p(HTML("<b>Stock data</b>"),
+          style="margin-bottom: 5px;"),
+        # Allow multiple inputs on same row if there is space
+        div(style = "display: flex; flex-wrap: wrap;",
+        pickerInput(inputId = "stock_account",
+                    label = NULL,
+                    choices = accounts_named_list,
+                    multiple = TRUE,
+                    width = "fit",
+                    options = list(`actions-box` = TRUE,
+                                   header = "Accounts",
+                                   `selected-text-format` = "static",
+                                   title = "Select the \"stock\" account(s)")),
+        uiOutput("stock_transfers"),
+        uiOutput("stock_gains")
+        ) #div end 
+        ), #sidepanel end
         # Use tabsets for the main panel to easily switch between reports
         mainPanel(width = 10, tabsetPanel(
-            tabPanel("Income/Expense Report", DT::dataTableOutput("expenses_pr_month")),
+            tabPanel("Income/Expense", 
+                     DT::dataTableOutput("expenses_pr_month")
+                     ),# end tabpanel
             tabPanel("Transactions", 
                      p(strong("Filter the transactions by selecting cells in the Income/Expense Report."),
                        style = "margin: 5px"),
                      DT::dataTableOutput("transactions_table")),
-            tabPanel("Sunburst Chart - Income",
+            tabPanel("Sunburst - Income",
                      p(strong("Click \"Other\" to see the buckets within that group and see \"config.R\" to change the threshold for \"Other\"."),
                        style="margin: 5px;"),
                      plotlyOutput("income_sunburstchart", height = height_income_piechart)),
-            tabPanel("Sunburst Chart - Expenses",
+            tabPanel("Sunburst - Expenses",
                      p(strong("Click a bucket group to see the buckets within that group."),
                        style="margin: 5px;"),
                      plotlyOutput("expense_sunburstchart", height = height_expenses_sunburst)),
@@ -166,9 +185,10 @@ shinyUI(fluidPage(
                      DT::dataTableOutput("savings_rate_table")),
             tabPanel("Bucket Balances",
                      p(strong("Always shows the current balance in the Buckets. Not affected by filters."),
-                       style="margin: 5px;"),
-                     p(strong("Labels can be toggled on/off."),
-                       style="margin: 5px"),
+                       style="margin-top: 5px;"),
+                     materialSwitch("bucket_balances_labels", 
+                                    "Show value labels",
+                                    value = TRUE),
                      plotlyOutput("bucket_balances", height = height_bucket_balances)),
             tabPanel("Bucket Transactions",
                      p(strong("Select a bucket to show the plot. Buckets without any activities cannot be selected."),
@@ -204,7 +224,7 @@ shinyUI(fluidPage(
                                                 `live-search-normalize` = TRUE)
                      ),
                      plotlyOutput("year_over_year", height = height_year_over_year)),
-            tabPanel("Sankey Diagram",
+            tabPanel("Sankey",
                      p(strong("Select saving buckets in the dropdown menu or specify them in \"config.R\"."),
                        style = "margin: 0 0 0 5px;"),
                      p(strong("Use the date and bucket filters on the left to customize the plot."),
@@ -232,18 +252,6 @@ shinyUI(fluidPage(
                                 numericInput("stock_gains_per_year",
                                              HTML("Gains per year in percent<br>(leave blank to use the historical data)"),
                                              value = NA_real_),
-                                p(HTML("<b>Historical data</b>")),
-                                pickerInput(inputId = "stock_account",
-                                            label = NULL,
-                                            choices = accounts_named_list,
-                                            multiple = TRUE,
-                                            width = "fit",
-                                            options = list(`actions-box` = TRUE,
-                                                           header = "Accounts",
-                                                           `selected-text-format` = "static",
-                                                           title = "Select the \"stock\" account(s)")),
-                                uiOutput("stock_transfers"),
-                                uiOutput("stock_gains"),
                                 radioButtons("stock_mean_sample",
                                              label = "When forecasting based on historical data either sample from historical data or use mean values for monthly gains and transfers",
                                              choices = c("Sample", "Mean"),
@@ -264,7 +272,11 @@ shinyUI(fluidPage(
                          uiOutput("stock_forecast")
                         )
                        )
-                     )
+                     ),
+            tabPanel("Gains vs Expenses",
+                     #plotlyOutput("gains_vs_expenses_plot")
+                       
+            )
             )
           )
         )
