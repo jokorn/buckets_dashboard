@@ -17,7 +17,7 @@ The reports resemble those available in YNAB.
 No extensive testing have been performed. Developed for personal use. Expect bugs (and kindly report bugs in GitHub when you do experience them).
 
 ## How to install
-- Install R. This was developed in R version 4.1.2 (64-bit) running under Debian GNU/Linux 10 (buster) and with Buckets Beta v0.76.0.
+- Install R. This was developed in R version 4.4.1 (64-bit) running under Debian GNU/Linux 12 (bookworm) and with Buckets Beta v0.76.0.
 - Install RStudio.
 - Download and unzip this repository or clone it using git.
 - Open RStudio and install the packages from the "library" calls in the file "global.R":
