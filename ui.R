@@ -274,7 +274,7 @@ shinyUI(fluidPage(
                        )
                      ),
             tabPanel("Gains vs Expenses",
-                     #plotlyOutput("gains_vs_expenses_plot")
+                     plotlyOutput("gains_vs_expenses_plot")
                        
             )
             )

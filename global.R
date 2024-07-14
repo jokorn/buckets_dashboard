@@ -1613,3 +1613,110 @@ plot_stock_forecast <- function(input_stock_time_years,
     
   
 }
+
+
+plot_gains_vs_expenses <- function(input_date_range,
+                                   input_stock_account,
+                                   input_stock_transfers,
+                                   input_stock_gains,
+                                   monthly) {
+  # Only keep the expenses and only within the period
+  # (Input monthly is already filtered to include selected buckets
+  # and to exclude selected saving buckets)
+  expenses <- monthly %>% 
+    filter(bucket_group != "Income") %>% 
+    filter(month >= input_date_range[1],
+           month <= input_date_range[2]) %>% 
+    # Summarize expenses per month and make expenses into positive number
+    group_by(month) %>% 
+    summarise(Expenses = sum(amount)*-1) %>% 
+    mutate(`Total expenses` = cumsum(Expenses)) %>% 
+    # Rename month to posted for easy joining with stock data
+    rename(posted = month)
+  
+  # Create the stock date for the period
+  stock_data <- create_stock_data(input_date_range[1],
+                                  input_date_range[2],
+                                  input_stock_account,
+                                  input_stock_transfers,
+                                  input_stock_gains)
+  
+  # Join stock data and expenses
+  gains_expenses <- stock_data %>% 
+    full_join(expenses,
+              by = "posted") %>% 
+    # There may be months missing from stock data that are present in
+    # expenses data, so stock value will have NA for these months
+    # convert these NA stock values into 0
+    mutate_all(~replace_na(.x, 0)) %>% 
+    # Arrange by month before using cumsum to calculate total gains
+    arrange(posted) %>% 
+    mutate(Total_gains = cumsum(Gains))
+  
+  # Calculate various values for use in the plot title
+  gains_per_month <- gains_expenses$Gains %>%
+    mean() %>%
+    format_currency(accuracy = 1)
+  
+  expenses_per_month <- gains_expenses$Expenses %>% 
+    mean() %>%
+    format_currency(accuracy = 1)
+  
+  covered <- (mean(gains_expenses$Gains) / mean(gains_expenses$Expenses)) %>% 
+    scales::percent(accuracy = 0.1)
+  
+  gains_total <- gains_expenses$Total_gains %>% 
+    last() %>% 
+    format_currency(accuracy = 1)
+  
+  expenses_total <- gains_expenses$`Total expenses` %>% 
+    last() %>% 
+    format_currency(accuracy = 1)
+  
+  # Create the plot title using above values
+  gains_expenses_title <- HTML(glue::glue("Historical data: Gains vs. Expenses (excluding Saving Buckets)<br>Gains covered {covered} of the expenses in the period<br>Average gains per month {gains_per_month} vs. average expenses per month {expenses_per_month}<br>Total gains in period {gains_total} vs. total expenses in period {expenses_total}"))
+  
+  # Make the plot
+  plot_ly(gains_expenses,
+          x = ~posted,
+          y = ~Expenses,
+          type = "bar",
+          name = "Expenses",
+          hovertemplate = hovertemplate,
+          marker = list(color = "red"))  %>% 
+    add_trace(y = ~Gains,
+              hovertemplate = hovertemplate,
+              type = "bar",
+              name = "Gains",
+              marker = list(color = "green")) %>% 
+    add_trace(y = ~`Total expenses`,
+              hovertemplate = hovertemplate,
+              name = "Total expenses",
+              type = "scatter",
+              mode = "lines+markers",
+              marker = list(color = "red"),
+              line = list(color = "red")) %>% 
+    add_trace(y = ~`Total_gains`,
+              hovertemplate = hovertemplate,
+              name = "Total gains",
+              type = "scatter",
+              mode = "lines+markers",
+              marker = list(color = "green"),
+              line = list(color = "green")) %>% 
+    layout(yaxis = list(title = ""),
+           xaxis = list(title = "",
+                        dtick = "M1",
+                        tickformat="%Y-%b"),
+           legend = list(x = 0, y = 1.15),
+           barmode = "group",
+           title = gains_expenses_title) %>% 
+    config(displayModeBar = TRUE,
+           displaylogo = FALSE,
+           modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                      "autoScale", "resetScale", "hoverClosestCartesian",
+                                      "hoverCompareCartesian", "lasso2d"),
+           toImageButtonOptions = list(height= NULL,
+                                       width= NULL)) %>% 
+    layout(separators = plotly_separators)
+  
+}

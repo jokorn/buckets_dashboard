@@ -543,6 +543,28 @@ shinyServer(function(input, output, session) {
                    height = ht())
     })
     
+    # Create the stock gains vs expenses plot
+    output$gains_vs_expenses_plot <- renderPlotly({
+      
+      req(iv_common$is_valid())
+      
+      shiny::validate(
+        need(input$stock_account,
+             "Select at least one stock account to display historical stock data."
+        )
+      )
+      
+      plot_gains_vs_expenses(input$date_range,
+                             input$stock_account,
+                             input$stock_transfers,
+                             input$stock_gains,
+                             monthly %>% 
+                               filter(category %in% c(input$income_buckets_filter_choices,
+                                                      input$expense_buckets_filter_choices)) %>% 
+                               filter(!(category %in% input$saving_buckets_filter_choices)))
+      
+    })
+    
     # Select the saving buckets from config.R in the drop down menu when the button is clicked
     observeEvent(input$select_config_saving_buckets, {
       updateCheckboxGroupInput(inputId="saving_buckets_filter_choices", 
