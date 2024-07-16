@@ -44,8 +44,6 @@ shinyUI(fluidPage(
                                maxDate = max(monthly$month)),
             actionButton(inputId = "select_all_dates", 
                          label = "All Months"),
-            actionButton(inputId = "select_current_month", 
-                         label = "Current Month"),
             actionButton(inputId = "select_current_year", 
                          label = "Current Year")
                      ), #Div end
@@ -54,9 +52,6 @@ shinyUI(fluidPage(
               style="margin-bottom: 5px;"),
             # Allow multiple inputs on same row
             div(style = "display: flex; flex-wrap: wrap;",
-              actionButton(inputId = "select_all_buckets", 
-                         label = "Show All Buckets",
-                         style = "margin-bottom: 5px;"),
               pickerInput(inputId = "income_buckets_filter_choices",
                     label = NULL,
                     selected = unlist(income_named_list, use.names = FALSE),
@@ -66,7 +61,7 @@ shinyUI(fluidPage(
                     options = list(`actions-box` = TRUE,
                                    header = "Income Buckets",
                                    `selected-text-format` = "static",
-                                   title = "Select Income Buckets"
+                                   title = "Income"
                     )
               ),
               pickerInput(inputId = "expense_buckets_filter_choices",
@@ -78,20 +73,14 @@ shinyUI(fluidPage(
                     options = list(`actions-box` = TRUE,
                                    header = "Expense Buckets",
                                    `selected-text-format` = "static",
-                                   title = "Select Expense Buckets")
+                                   title = "Expenses")
               ),
               actionButton(inputId = "deselect_kicked", 
-                     label = "Deselect Kicked Expenses",
+                     label = "Deselect Kicked",
                      style="margin-bottom: 5px;")
             ), #div end
         # Input controls for the Income/Expense and Transactions reports
             p(strong("Income/Expense and Transactions")),
-            materialSwitch("toggle_report_view",
-                           "Only Bucket Groups",
-                           width = "auto"),
-            materialSwitch("toggle_zero_totals",
-                           "Show Buckets With All Zeros",
-                           width = "auto"),
             actionButton(inputId = "clear_selection", 
                          label = "Clear Selection"),
         # Input controls for filtering accounts in net wealth report
@@ -144,12 +133,51 @@ shinyUI(fluidPage(
                                    `selected-text-format` = "static",
                                    title = "Select the \"stock\" account(s)")),
         uiOutput("stock_transfers"),
-        uiOutput("stock_gains")
+        uiOutput("stock_gains"),
+        p(strong("Override historical data when forecasting"),
+          style="margin-bottom: 5px;"),
+        p("Initial value of stocks",
+          style = "margin-bottom: 0;"),
+        autonumericInput("stock_start_value",
+                         label = NULL,
+                         currencySymbol = user_currency,
+                         currencySymbolPlacement = if (currency_before) "p" else "s",
+                         decimalCharacter = user_dec.mark,
+                         digitGroupSeparator = user_mark,
+                         value = NA_real_),
+        p("Amount invested per month",
+          style = "margin-bottom: 0;"),
+        autonumericInput("stock_invested_per_month",
+                         label = NULL,
+                         currencySymbol = user_currency,
+                         currencySymbolPlacement = if (currency_before) "p" else "s",
+                         decimalCharacter = user_dec.mark,
+                         digitGroupSeparator = user_mark,
+                         value = NA_real_),
+        p("Gains per year in percent",
+          style = "margin-bottom: 0;"),
+        autonumericInput("stock_gains_per_year",
+                         label = NULL,
+                         currencySymbol = "%",
+                         currencySymbolPlacement = "s",
+                         decimalCharacter = user_dec.mark,
+                         digitGroupSeparator = user_mark,
+                         value = NA_real_)
         ) #div end 
         ), #sidepanel end
         # Use tabsets for the main panel to easily switch between reports
         mainPanel(width = 10, tabsetPanel(
             tabPanel("Income/Expense", 
+                     p(strong("Controls"),
+                       style="margin-top: 5px;"),
+                     materialSwitch("toggle_report_view",
+                                    "Only Bucket Groups",
+                                    inline = TRUE,
+                                    width = "auto"),
+                     materialSwitch("toggle_zero_totals",
+                                    "Show Buckets With All Zeros",
+                                    inline = TRUE,
+                                    width = "auto"),
                      DT::dataTableOutput("expenses_pr_month")
                      ),# end tabpanel
             tabPanel("Transactions", 
@@ -241,17 +269,8 @@ shinyUI(fluidPage(
             tabPanel("Stocks",
                      fluidPage(
                        fluidRow(
-                         column(width = 3,
+                         column(width = 2,
                                 numericInput("stock_time", "Number of years to forecast", 10, min = 1, max = 50),
-                                numericInput("stock_start_value",
-                                             HTML("Initial value of stocks before forecasting<br>(leave blank to use the historical data)"),
-                                             value = NA_real_),
-                                numericInput("stock_invested_per_month",
-                                             HTML("Amount invested per month<br>(leave blank to use the historical data)"),
-                                             value = NA_real_),
-                                numericInput("stock_gains_per_year",
-                                             HTML("Gains per year in percent<br>(leave blank to use the historical data)"),
-                                             value = NA_real_),
                                 radioButtons("stock_mean_sample",
                                              label = "When forecasting based on historical data either sample from historical data or use mean values for monthly gains and transfers",
                                              choices = c("Sample", "Mean"),
@@ -263,7 +282,7 @@ shinyUI(fluidPage(
                                              max = 10000,
                                              step = 1)
                          ),
-                         column(width = 9,
+                         column(width = 10,
                                 plotlyOutput("stock_historical")
                                 )
                        ),
@@ -274,7 +293,34 @@ shinyUI(fluidPage(
                        )
                      ),
             tabPanel("Gains vs Expenses",
-                     plotlyOutput("gains_vs_expenses_plot")
+                     fluidPage(
+                       fluidRow(
+                         column(width = 2,
+                                airDatepickerInput("cover_expenses_until_date",
+                                                   label = "Expenses should be covered until this year and month",
+                                                   autoClose = TRUE,
+                                                   update_on = "change",
+                                                   toggleSelected = FALSE,
+                                                   addon = "none",
+                                                   dateFormat = "yyyy-MMM",
+                                                   range = FALSE,
+                                                   view = "months",
+                                                   minView = "months",
+                                                   todayButton = FALSE,
+                                                   value = floor_date(today() %m+% years(30), "month"),
+                                                   startView = floor_date(today() %m+% years(30), "month"),
+                                                   minDate = min(monthly$month))
+                         ),
+                         column(width = 10,
+                                plotlyOutput("gains_vs_expenses_plot")
+                         )
+                       ),
+                       fluidRow(
+                         column(width = 12),
+                         #uiOutput("stock_cover_expenses_plot")
+                       )
+                     )
+                     
                        
             )
             )

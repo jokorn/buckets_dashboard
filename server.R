@@ -8,7 +8,7 @@ shinyServer(function(input, output, session) {
       title = "WARNING!",
       HTML(modal_text)
     ))
-  }
+  } 
   
   # Input validation common
   iv_common <- InputValidator$new()
@@ -78,19 +78,6 @@ shinyServer(function(input, output, session) {
                                                                show_zero_totals = input$toggle_zero_totals))
     })
     
-    # Select all buckets in the drop down menus when the button is clicked
-    observeEvent(input$select_all_buckets, {
-      selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
-      updateCheckboxGroupInput(inputId="income_buckets_filter_choices", 
-                               selected = unlist(income_named_list, use.names = FALSE),
-                               choices = income_named_list)
-      updateCheckboxGroupInput(inputId="expense_buckets_filter_choices", 
-                               selected = unlist(expenses_named_list, use.names = FALSE),
-                               choices = expenses_named_list)
-      
-      }
-    )
-    
     # Deselect all kicked buckets in the expenses drop down menu when clicked
     observeEvent(input$deselect_kicked, {
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
@@ -120,14 +107,6 @@ shinyServer(function(input, output, session) {
       updateAirDateInput(session,
                          inputId = "date_range",
                          value = c(min(monthly$month), max(monthly$month)))
-      selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
-    }
-    )
-    
-    observeEvent(input$select_current_month, {
-      updateAirDateInput(session,
-                         inputId = "date_range",
-                         value = c(floor_date(today2(), "month"), floor_date(today2(), "month")))
       selectCells(proxy = dataTableProxy("expenses_pr_month"), selected = NULL)
     }
     )

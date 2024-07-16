@@ -12,7 +12,7 @@ library(janitor)
 library(plotly)
 library(checkmate)
 library(shinyvalidate)
-
+ 
 # Load the config file
 source("config.R")
 
@@ -1709,7 +1709,8 @@ plot_gains_vs_expenses <- function(input_date_range,
                         tickformat="%Y-%b"),
            legend = list(x = 0, y = 1.15),
            barmode = "group",
-           title = gains_expenses_title) %>% 
+           title = list(text = gains_expenses_title,
+                        font = list(size=12))) %>% 
     config(displayModeBar = TRUE,
            displaylogo = FALSE,
            modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
