@@ -1614,16 +1614,18 @@ plot_stock_forecast <- function(input_stock_time_years,
   
 }
 
-
-plot_gains_vs_expenses <- function(input_date_range,
-                                   input_stock_account,
-                                   input_stock_transfers,
-                                   input_stock_gains,
-                                   monthly) {
+calculate_expenses <- function(monthly,
+                               input_date_range,
+                               input_income_buckets_filter_choices,
+                               input_expense_buckets_filter_choices,
+                               input_saving_buckets_filter_choices) {
+  
   # Only keep the expenses and only within the period
-  # (Input monthly is already filtered to include selected buckets
-  # and to exclude selected saving buckets)
-  expenses <- monthly %>% 
+  # Filtered to include selected buckets only and exclude saving buckets
+  expenses <- monthly %>%
+    filter(category %in% c(input_income_buckets_filter_choices,
+                           input_expense_buckets_filter_choices)) %>% 
+    filter(!(category %in% input_saving_buckets_filter_choices)) %>% 
     filter(bucket_group != "Income") %>% 
     filter(month >= input_date_range[1],
            month <= input_date_range[2]) %>% 
@@ -1632,7 +1634,15 @@ plot_gains_vs_expenses <- function(input_date_range,
     summarise(Expenses = sum(amount)*-1) %>% 
     mutate(`Total expenses` = cumsum(Expenses)) %>% 
     # Rename month to posted for easy joining with stock data
-    rename(posted = month)
+             rename(posted = month)
+  
+}
+
+plot_gains_vs_expenses <- function(input_date_range,
+                                   input_stock_account,
+                                   input_stock_transfers,
+                                   input_stock_gains,
+                                   expenses) {
   
   # Create the stock date for the period
   stock_data <- create_stock_data(input_date_range[1],
@@ -1720,4 +1730,135 @@ plot_gains_vs_expenses <- function(input_date_range,
                                        width= NULL)) %>% 
     layout(separators = plotly_separators)
   
+}
+
+plot_stock_cover_expenses <- function(stock_forecast_start_value,
+                                      stock_forecast_gains,
+                                      stock_forecast_transfers,
+                                      cover_expenses_until_date,
+                                      expenses_per_month) {
+  
+  
+  accumulate_expenses_and_gains <- function(months_data, accumulate_until){
+    
+    value_after_gains <- vector("numeric", length = length(months_data))
+    value_after_gains[1] <- stock_forecast_start_value
+    transfers <- vector("numeric", length = length(months_data))
+    transfers[1] <- 0
+    expenses <- vector("numeric", length = length(months_data))
+    expenses[1] <- 0
+    gains_losses <- vector("numeric", length = length(months_data))
+    gains_losses[1] <- 0
+    
+    for (i in 2:length(months_data)) {
+      if (months_data[i] >= accumulate_until) {
+        expenses[i] <- expenses_per_month*-1
+      } else {
+        transfers[i] <- stock_forecast_transfers
+      }
+      value_after_gains[i] <- (value_after_gains[i-1]+transfers[i]+expenses[i])*stock_forecast_gains
+      gains_losses[i] <- (value_after_gains[i-1]+transfers[i]+expenses[i])*stock_forecast_gains-(value_after_gains[i-1]+transfers[i]+expenses[i])
+    }
+    
+    tibble(posted = months_data,
+           value_after_gains = value_after_gains,
+           gains_losses = gains_losses,
+           start_value = stock_forecast_start_value,
+           transfers = transfers,
+           expenses = expenses) %>% 
+      arrange(posted) %>% 
+      mutate(total_transfers = cumsum(transfers)) %>% 
+      mutate(total_expenses = cumsum(expenses)) %>% 
+      mutate(total_gains = cumsum(gains_losses))
+    
+  }
+  
+  # Make grid to populate with data
+  cover_expenses <- tibble(accumulate_until = seq(today() %>% floor_date("month"),
+                                                  ymd(cover_expenses_until_date) %>% floor_date("month"),
+                                                  by = "month")) %>% 
+    mutate(months_data = list(accumulate_until)) %>% 
+    mutate(value_per_month = map2(months_data, accumulate_until, accumulate_expenses_and_gains)) %>% 
+    mutate(end_value = map_dbl(value_per_month, ~ .x$value_after_gains %>% last()))
+  
+  # Find the first date where accumulation leads to positive total value
+  # at the specified month-date
+  
+  cover_expenses_success <- cover_expenses %>% 
+    filter(end_value >= 0) %>% 
+    first() %>% 
+    unnest(value_per_month)
+    
+  if (nrow(cover_expenses_success) == 0) {
+    plot_title = glue::glue("It is not possible to accumulate enough to cover the expenses with the start value, transfers, gains, expenses, and end value provided.")
+      plotly_empty(type = "scatter", mode = "markers") %>%
+        config(displayModeBar = TRUE,
+               displaylogo = FALSE,
+               modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                          "autoScale", "resetScale", "hoverClosestCartesian",
+                                          "hoverCompareCartesian", "lasso2d"),
+               toImageButtonOptions = list(height= NULL,
+                                           width= NULL)) %>% 
+        layout(separators = plotly_separators,
+               title = list(
+                 text = plot_title,
+                 yref = "paper",
+                 y = 1
+                 )) %>% 
+        config(displayModeBar = FALSE)
+      
+  } else {
+    
+    plot_title <- glue::glue("Accumulate {cover_expenses_success %>% filter(posted == first(accumulate_until)) %>% pull(value_after_gains) %>% format_currency(accuracy = 1)} by {format(cover_expenses_success$accumulate_until[1], format = '%Y-%b')} to cover monthly expenses of {expenses_per_month %>% format_currency(accuracy = 1)} from {format(cover_expenses_success$accumulate_until[1], format = '%Y-%b')} to {format(cover_expenses_until_date, format = '%Y-%b')}<br>Based on start value of {format_currency(stock_forecast_start_value, accuracy = 1)}, monthly transfers of {stock_forecast_transfers %>% format_currency(accuracy = 1)} during accumulation and yearly gains of {scales::percent(stock_forecast_gains^12-1, accuracy = 0.1)} compounded monthly<br>Not taking into account tax on gains or inflation and not reflecting a safe withdrawal rate")
+    
+    cover_expenses_for_plotting <- cover_expenses_success %>% 
+      mutate(year_posted = year(posted)) %>% 
+      group_by(year_posted) %>% 
+      slice(n()) %>% 
+      ungroup()
+    
+    # Make the plot
+    plot_ly(cover_expenses_for_plotting,
+            x = ~posted,
+            y = ~start_value,
+            type = "bar",
+            name = "Opening balance",
+            hovertemplate = hovertemplate,
+            marker = list(color = "grey")) %>% 
+      add_trace(y = ~total_transfers,
+                hovertemplate = hovertemplate,
+                name = "Total transfers",
+                marker = list(color = "blue")) %>% 
+      add_trace(y = ~total_gains,
+                hovertemplate = hovertemplate,
+                name = "Total gains",
+                marker = list(color = "green")) %>%
+      add_trace(y = ~total_expenses,
+                hovertemplate = hovertemplate,
+                name = "Total expenses",
+                marker = list(color = "red")) %>% 
+      add_trace(y = ~value_after_gains,
+                hovertemplate = hovertemplate,
+                name = "Total value",
+                type = "scatter",
+                mode = "lines+markers",
+                marker = list(color = "black", size = 10),
+                line = list(color = "black")) %>%
+      layout(yaxis = list(title = ""),
+             xaxis = list(title = "",
+                          dtick = "M12",
+                          tickformat="%Y"),
+             legend = list(x = 0, y = 1.15),
+             barmode = "relative",
+             title = list(text = plot_title,
+                          font = list(size=12))) %>% 
+      config(displayModeBar = TRUE,
+             displaylogo = FALSE,
+             modeBarButtonsToRemove = c("zoom", "pan", "select", "zoomIn", "zoomOut",
+                                        "autoScale", "resetScale", "hoverClosestCartesian",
+                                        "hoverCompareCartesian", "lasso2d"),
+             toImageButtonOptions = list(height= NULL,
+                                         width= NULL)) %>% 
+      layout(separators = plotly_separators)
+  }
 }

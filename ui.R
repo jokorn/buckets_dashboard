@@ -134,7 +134,7 @@ shinyUI(fluidPage(
                                    title = "Select the \"stock\" account(s)")),
         uiOutput("stock_transfers"),
         uiOutput("stock_gains"),
-        p(strong("Override historical data when forecasting"),
+        p(strong("Override historical data when forecasting stock value"),
           style="margin-bottom: 5px;"),
         p("Initial value of stocks",
           style = "margin-bottom: 0;"),
@@ -144,6 +144,7 @@ shinyUI(fluidPage(
                          currencySymbolPlacement = if (currency_before) "p" else "s",
                          decimalCharacter = user_dec.mark,
                          digitGroupSeparator = user_mark,
+                         decimalPlaces = 0,
                          value = NA_real_),
         p("Amount invested per month",
           style = "margin-bottom: 0;"),
@@ -153,6 +154,7 @@ shinyUI(fluidPage(
                          currencySymbolPlacement = if (currency_before) "p" else "s",
                          decimalCharacter = user_dec.mark,
                          digitGroupSeparator = user_mark,
+                         decimalPlaces = 0,
                          value = NA_real_),
         p("Gains per year in percent",
           style = "margin-bottom: 0;"),
@@ -297,7 +299,7 @@ shinyUI(fluidPage(
                        fluidRow(
                          column(width = 2,
                                 airDatepickerInput("cover_expenses_until_date",
-                                                   label = "Expenses should be covered until this year and month",
+                                                   label = "Expenses should be covered until this year and month, e.g. date when retirement funds are available for withdrawal without penalty",
                                                    autoClose = TRUE,
                                                    update_on = "change",
                                                    toggleSelected = FALSE,
@@ -309,7 +311,16 @@ shinyUI(fluidPage(
                                                    todayButton = FALSE,
                                                    value = floor_date(today() %m+% years(30), "month"),
                                                    startView = floor_date(today() %m+% years(30), "month"),
-                                                   minDate = min(monthly$month))
+                                                   minDate = min(monthly$month)),
+                                autonumericInput("expenses_per_month",
+                                                 label = "Expenses per month (leave blank to use historical data)",
+                                                 currencySymbol = user_currency,
+                                                 currencySymbolPlacement = if (currency_before) "p" else "s",
+                                                 decimalCharacter = user_dec.mark,
+                                                 digitGroupSeparator = user_mark,
+                                                 minimumValue = 0,
+                                                 decimalPlaces = 0,
+                                                 value = NA_real_)
                          ),
                          column(width = 10,
                                 plotlyOutput("gains_vs_expenses_plot")
@@ -317,7 +328,7 @@ shinyUI(fluidPage(
                        ),
                        fluidRow(
                          column(width = 12),
-                         #uiOutput("stock_cover_expenses_plot")
+                         plotlyOutput("stock_cover_expenses_plot")
                        )
                      )
                      

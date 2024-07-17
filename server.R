@@ -428,12 +428,6 @@ shinyServer(function(input, output, session) {
                                  title = "Select all the gains transactions"))
     })
     
-    # Validate the numeric inputs used in stock forecasting
-    iv_stock <- InputValidator$new()
-    iv_stock$add_rule("stock_time", compose_rules(sv_integer(), sv_between(1, 50)))
-    iv_stock$add_rule("stock_nsims", compose_rules(sv_integer(), sv_between(2, 1001)))
-    iv_stock$enable()
-    
     # When all the data needed for forecasting stocks, then render the historical data
     output$stock_historical <- renderPlotly({
       
@@ -456,53 +450,61 @@ shinyServer(function(input, output, session) {
       
     })
     
+    # Validate the numeric inputs used in stock forecasting
+    iv_stock_forecast <- InputValidator$new()
+    iv_stock_forecast$add_rule("stock_time", compose_rules(sv_integer(), sv_between(1, 50)))
+    iv_stock_forecast$add_rule("stock_nsims", compose_rules(sv_integer(), sv_between(2, 1001)))
+    iv_stock_forecast$enable()
+    
+    # Calculate gains, transfers, and start value based on inputs for use
+    # when forecasting stock values
+    
+    stock_forecast_start_value <- reactive(calculate_start_value(input$stock_start_value,
+                                                                 input$stock_account,
+                                                                 input$stock_transfers,
+                                                                 input$stock_gains,
+                                                                 input$date_range[[1]],
+                                                                 input$date_range[[2]])) %>% 
+      debounce(1000)
+    
+    stock_forecast_gains <- reactive(calculate_gains(input$stock_gains_per_year,
+                                                     input$stock_account,
+                                                     input$stock_transfers,
+                                                     input$stock_gains,
+                                                     input$date_range[[1]],
+                                                     input$date_range[[2]],
+                                                     input$stock_mean_sample)) %>% 
+      debounce(1000)
+    
+    stock_forecast_transfers <- reactive(calculate_transfers(input$stock_invested_per_month,
+                                                             input$stock_account,
+                                                             input$stock_transfers,
+                                                             input$stock_gains,
+                                                             input$date_range[[1]],
+                                                             input$date_range[[2]],
+                                                             input$stock_mean_sample)) %>% 
+      debounce(1000)
+    
     # When we have the needed data, then forecast and plot the stock values 
     output$stock_forecast_fig <- renderPlotly({
       
       req(iv_common$is_valid(),
-          iv_stock$is_valid())
+          iv_stock_forecast$is_valid())
       
-      stock_forecast_start_value <- calculate_start_value(input$stock_start_value,
-                                                          input$stock_account,
-                                                          input$stock_transfers,
-                                                          input$stock_gains,
-                                                          input$date_range[[1]],
-                                                          input$date_range[[2]])
-      
-      stock_forecast_gains <- calculate_gains(input$stock_gains_per_year,
-                                              input$stock_account,
-                                              input$stock_transfers,
-                                              input$stock_gains,
-                                              input$date_range[[1]],
-                                              input$date_range[[2]],
-                                              input$stock_mean_sample)
-      
-      stock_forecast_transfers <- calculate_transfers(input$stock_invested_per_month,
-                                                      input$stock_account,
-                                                      input$stock_transfers,
-                                                      input$stock_gains,
-                                                      input$date_range[[1]],
-                                                      input$date_range[[2]],
-                                                      input$stock_mean_sample)
-      
-      input_stock_nsims <- input$stock_nsims
-      input_stock_time <- input$stock_time
-      input_stock_mean_sample <- input$stock_mean_sample
-      
-      req(stock_forecast_start_value,
-          stock_forecast_gains,
-          stock_forecast_transfers,
-          input_stock_nsims,
-          input_stock_time,
-          input_stock_mean_sample,
+      req(stock_forecast_start_value(),
+          stock_forecast_gains(),
+          stock_forecast_transfers(),
+          input$stock_nsims,
+          input$stock_time,
+          input$stock_mean_sample,
           cancelOutput = TRUE)
       
-      plot_stock_forecast(input_stock_time,
-                          stock_forecast_start_value,
-                          stock_forecast_gains, 
-                          stock_forecast_transfers,
-                          input_stock_mean_sample,
-                          input_stock_nsims)
+      plot_stock_forecast(input$stock_time,
+                          stock_forecast_start_value(),
+                          stock_forecast_gains(), 
+                          stock_forecast_transfers(),
+                          input$stock_mean_sample,
+                          input$stock_nsims)
       
     })
     
@@ -522,6 +524,14 @@ shinyServer(function(input, output, session) {
                    height = ht())
     })
     
+    # Calculate expenses from historical data
+    expenses <- reactive(calculate_expenses(monthly,
+                                            input$date_range,
+                                            input$income_buckets_filter_choices,
+                                            input$expense_buckets_filter_choices,
+                                            input$saving_buckets_filter_choices)
+                         )
+    
     # Create the stock gains vs expenses plot
     output$gains_vs_expenses_plot <- renderPlotly({
       
@@ -537,10 +547,35 @@ shinyServer(function(input, output, session) {
                              input$stock_account,
                              input$stock_transfers,
                              input$stock_gains,
-                             monthly %>% 
-                               filter(category %in% c(input$income_buckets_filter_choices,
-                                                      input$expense_buckets_filter_choices)) %>% 
-                               filter(!(category %in% input$saving_buckets_filter_choices)))
+                             expenses())
+      
+    })
+    
+    expenses_per_month <- reactive({
+      if (test_number(input$expenses_per_month)) {
+        input$expenses_per_month
+      } else {
+        mean(expenses()$Expenses)
+      }
+    }) %>% debounce(1000)
+    
+    output$stock_cover_expenses_plot <- renderPlotly({
+      
+      req(iv_common$is_valid(),
+          iv_stock_forecast$is_valid())
+      
+      req(stock_forecast_start_value(),
+          stock_forecast_gains(),
+          stock_forecast_transfers(),
+          input$cover_expenses_until_date,
+          expenses_per_month(),
+          cancelOutput = TRUE)
+      
+      plot_stock_cover_expenses(stock_forecast_start_value(),
+                                mean(stock_forecast_gains()),
+                                mean(stock_forecast_transfers()),
+                                input$cover_expenses_until_date,
+                                expenses_per_month())
       
     })
     
