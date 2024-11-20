@@ -173,18 +173,24 @@ shinyServer(function(input, output, session) {
                 filter(category %in% input$income_buckets_filter_choices) %>% 
                 group_by(category) %>% 
                 summarize(amount = sum(amount)) %>% 
-                mutate(parent = " Income ") %>% 
                 filter(amount != 0) %>% 
+                mutate(parent = "Income") %>%  
                 mutate(prop = amount / sum(amount)) %>%
-                mutate(parent = if_else(prop < income_other_threshold, "Other", " Income "))
+                mutate(parent = if_else(prop < income_other_threshold, "Other", parent))
                   
                 second <- first %>% 
                   group_by(parent) %>% 
                   summarize(amount = sum(amount)) %>%
                   filter(parent == "Other") %>%
-                  mutate(category = "Other", parent = " Income ")
+                  mutate(category = "Other", parent = "Income")
                 
-                bind_rows(first, second)
+                bind_rows(first, second) %>% 
+                  group_by(parent) %>% 
+                  mutate(total = sum(amount)) %>% 
+                  ungroup() %>% 
+                  mutate(parent = ifelse(parent == "Income", 
+                                         str_c(parent, "\n", format_currency(total, accuracy = 1)),
+                                         parent))
                 },
               name = "income_sunburst",
               branchvalues = "total",
@@ -241,7 +247,13 @@ shinyServer(function(input, output, session) {
                   group_by(bucket_group, category) %>% 
                   summarize(amount = sum(amount)*-1) %>% 
                   mutate(parent = bucket_group,
-                         labels = category)),
+                         labels = category)) %>% 
+                group_by(parent) %>% 
+                mutate(total = sum(amount)) %>% 
+                ungroup() %>% 
+                mutate(parent = if_else(parent == "Expenses",
+                                        str_c(parent, "\n", format_currency(total, accuracy = 1)),
+                                        parent)),
               name = "expense_piechart",
               parents = ~parent,
               labels = ~labels,
