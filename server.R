@@ -398,11 +398,9 @@ shinyServer(function(input, output, session) {
         need(length(input$netwealth_account_filter_choices) >= 1, "Select at least one account to forecast.")
       )
       
-      plot_forecast(all_transactions,
+      plot_forecast(assets_liabilities,
                     input$date_range,
-                    input$netwealth_account_filter_choices,
-                    c(input$income_buckets_filter_choices,
-                      input$expense_buckets_filter_choices))
+                    input$netwealth_account_filter_choices)
       
     })
     

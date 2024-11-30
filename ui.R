@@ -265,7 +265,7 @@ shinyUI(fluidPage(
             tabPanel("Forecast",
                      p(strong("Forecasting by sampling historical data (monthly). Inspired by YNAB Toolkit."),
                        style = "margin: 0 0 0 5px;"),
-                     p(strong("Use the date, account and bucket filters on the left to customize the data used for forecasting."),
+                     p(strong("Use the date and account filters on the left to customize the data used for forecasting. Start net wealth is always today's net wealth respecting account filters."),
                        style = "margin: 0 0 0 5px;"),
                      plotlyOutput("forecast", height = height_sankey)),
             tabPanel("Stocks",
