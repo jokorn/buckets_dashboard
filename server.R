@@ -1,5 +1,5 @@
 # Define server logic
-shinyServer(function(input, output, session) {
+function(input, output, session) {
   
   # Check if any bucket names are duplicated as this may cause issues
   # if duplicates exist create a modal to warn and encourage renaming of buckets
@@ -406,7 +406,7 @@ shinyServer(function(input, output, session) {
     
     # When a "stock" account has been selected render the input UI for selecting
     # transfers and gains transactions
-    output$stock_transfers <- renderUI({
+    output$stock_transfers_ui <- renderUI({
       pickerInput(inputId = "stock_transfers",
                   label = NULL,
                   choices = all_transactions %>% 
@@ -422,7 +422,7 @@ shinyServer(function(input, output, session) {
                                  title = "Select all the transfer transactions"))
     })
     
-    output$stock_gains <- renderUI({
+    output$stock_gains_ui <- renderUI({
       pickerInput(inputId = "stock_gains",
                   label = NULL,
                   choices = all_transactions %>% 
@@ -609,4 +609,4 @@ shinyServer(function(input, output, session) {
                           input$bucket_balances_labels)
     }) 
     
-})
+}

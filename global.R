@@ -43,19 +43,20 @@ safer_sample <- function(x, ...) {
 hovertemplate <- glue::glue("%{{x|%b %Y}}: %{{y:{plotly_separators}0f}}")
 
 # Variables for correct zoom based on user input in config.R
+# Removed these:
+#-moz-transform: scale({zoom_value}, {zoom_value});
+# zoom: {scales::percent(zoom_value, accuracy = 1)};
 zoom_css <- glue::glue("
             body {{
-               -moz-transform: scale({zoom_value}, {zoom_value});
                zoom: {zoom_value};
-               zoom: {scales::percent(zoom_value, accuracy = 1)};
             }}
             ")
-
+# Removed these values:
+# moz-transform: scale({1/zoom_value}, {1/zoom_value});
+# zoom: {scales::percent(1/zoom_value, accuracy = 1)};
 zoom_reverse <- glue::glue("
             .plotly.html-widget {{
-            moz-transform: scale({1/zoom_value}, {1/zoom_value});
             zoom: {1/zoom_value};
-            zoom: {scales::percent(1/zoom_value, accuracy = 1)};
             }}")   # Zoom messes up hover in the bar chart (Net Wealth) so must be reversed. 
                  # The values here should be 1/[value in zoom_value], 
                  # e.g. 1/80% = 125%

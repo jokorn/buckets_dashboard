@@ -1,5 +1,5 @@
 # Define UI
-shinyUI(fluidPage(
+fluidPage(
   useShinyjs(),
   extendShinyjs(text = js_year_over_year_bucket_transactions, 
                 functions = c("get_bucket_transactions_bucket_group",
@@ -132,8 +132,8 @@ shinyUI(fluidPage(
                                    header = "Accounts",
                                    `selected-text-format` = "static",
                                    title = "Select the \"stock\" account(s)")),
-        uiOutput("stock_transfers"),
-        uiOutput("stock_gains"),
+        uiOutput("stock_transfers_ui"),
+        uiOutput("stock_gains_ui"),
         p(strong("Override historical data when forecasting stock value"),
           style="margin-bottom: 5px;"),
         p("Initial value of stocks",
@@ -338,6 +338,5 @@ shinyUI(fluidPage(
           )
         )
     )
-)
 
     
